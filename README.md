@@ -1,5 +1,9 @@
 # 🚀 Ripleytia AI Automated Cover (v1.0.0) - Evrensel Kararlı Sürüm
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ripleytia/ripleytia-ai-cover/main/assets/logo.jpg" width="250" alt="Ripleytia AI Cover Logo">
+</p>
+
 Ripleytia'nın **Gothic Purple** siberpunk estetiğine sahip profesyonel ses stüdyosu artık kullanıma hazır! Meta Demucs v4 ve RVC motorlarının gücüyle, evrensel yapay zeka cover'larınızı espor stüdyosu kalitesinde (sıfır detone, sıfır cızırtı) üretin.
 
 <p align="center">

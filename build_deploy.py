@@ -52,6 +52,7 @@ def build_project():
     
     cmd = [
         "pyinstaller",
+        "-y",             # Üzerine yazma izni (Mevcut klasörü siler)
         "--name=Ripleytia_AI_Cover",
         "--windowed",     
         "--noconsole", 
@@ -61,6 +62,7 @@ def build_project():
         "--add-data=models;models",
         "--hidden-import=PyQt6",
         "--hidden-import=pydub",
+        "--hidden-import=pyaudioop",  # Python 3.13+ pydub uyumluluğu için
         "--hidden-import=torch",
         "--hidden-import=torchaudio",
         "--hidden-import=demucs",
