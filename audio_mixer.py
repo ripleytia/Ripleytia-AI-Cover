@@ -131,12 +131,12 @@ class RipleytiaCoverPipeline:
         for d in self.dirs.values():
             os.makedirs(d, exist_ok=True)
             
-    def run_pipeline(self, input_audio: str, model_path: str, index_path: str, pitch_val: int, algo_val: str, output_dir: str = None):
+    def run_pipeline(self, input_audio: str, model_path: str, index_path: str, pitch_val: int, algo_val: str, idx_val: float, rms_val: float, protect_val: float, output_dir: str = None):
         """
         Try-except bypass duvarları içeren kilitlenme korumalı ana Cover akışı.
         """
         logging.info(f"=== RIPLEYTIA AI COVER PIPELINE BAŞLATILDI ===")
-        logging.info(f"Hedef Model: {model_path} | Algoritma: {algo_val} | Pitch: {pitch_val}")
+        logging.info(f"Hedef Model: {model_path} | Algoritma: {algo_val} | Pitch: {pitch_val} | İndex: {idx_val}")
         
         try:
             import subprocess
@@ -174,7 +174,10 @@ class RipleytiaCoverPipeline:
                 # Parametreleri rvc-python yapısına uygun şekilde ata
                 rvc.set_params(
                     f0up_key=pitch_val,
-                    f0method=algo_val
+                    f0method=algo_val,
+                    index_rate=idx_val,
+                    rms_mix_rate=rms_val,
+                    protect=protect_val
                 )
                 
                 rvc.infer_file(

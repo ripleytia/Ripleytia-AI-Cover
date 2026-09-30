@@ -14,7 +14,7 @@ from audio_mixer import RipleytiaCoverPipeline
 class CoverWorker(QThread):
     finished = pyqtSignal(bool, str)
     
-    def __init__(self, pipeline, input_audio, model_path, index_path, pitch_val, algo_val, output_dir):
+    def __init__(self, pipeline, input_audio, model_path, index_path, pitch_val, algo_val, idx_val, rms_val, protect_val, output_dir):
         super().__init__()
         self.pipeline = pipeline
         self.input_audio = input_audio
@@ -22,6 +22,9 @@ class CoverWorker(QThread):
         self.index_path = index_path
         self.pitch_val = pitch_val
         self.algo_val = algo_val
+        self.idx_val = idx_val
+        self.rms_val = rms_val
+        self.protect_val = protect_val
         self.output_dir = output_dir
         
     def run(self):
@@ -31,6 +34,9 @@ class CoverWorker(QThread):
             self.index_path, 
             self.pitch_val, 
             self.algo_val, 
+            self.idx_val,
+            self.rms_val,
+            self.protect_val,
             self.output_dir
         )
         self.finished.emit(success, result_path)
@@ -219,7 +225,9 @@ class RipleytiaAppWindow(QMainWindow):
         panel_layout.addLayout(controls_layout)
         
         # --- İLERİ SEVİYE AYARLAR (PITCH, ALGO, ÇIKTI) ---
-        adv_layout = QHBoxLayout()
+        adv_layout = QVBoxLayout()
+        
+        row1_layout = QHBoxLayout()
         
         # Pitch Ayarı
         pitch_layout = QVBoxLayout()
@@ -231,18 +239,18 @@ class RipleytiaAppWindow(QMainWindow):
         self.slider_pitch.valueChanged.connect(self._update_pitch_label)
         pitch_layout.addWidget(self.lbl_pitch)
         pitch_layout.addWidget(self.slider_pitch)
-        adv_layout.addLayout(pitch_layout)
+        row1_layout.addLayout(pitch_layout)
         
         # Algoritma (Tune) Seçimi
         algo_layout = QVBoxLayout()
-        self.lbl_algo = QLabel("Tune Algoritması:")
+        self.lbl_algo = QLabel("F0 (Tune) Algoritması:")
         self.lbl_algo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.combo_algo = QComboBox()
-        self.combo_algo.addItems(["rmvpe", "mangio-crepe", "harvest", "pm"])
+        self.combo_algo.addItems(["rmvpe", "mangio-crepe", "harvest", "crepe", "pm"])
         self.combo_algo.setStyleSheet(f"background-color: {RipleytiaDesignSystem.COLORS.PANEL_BG}; color: white; padding: 5px;")
         algo_layout.addWidget(self.lbl_algo)
         algo_layout.addWidget(self.combo_algo)
-        adv_layout.addLayout(algo_layout)
+        row1_layout.addLayout(algo_layout)
         
         # Çıktı Klasörü
         out_layout = QVBoxLayout()
@@ -252,7 +260,50 @@ class RipleytiaAppWindow(QMainWindow):
         self.lbl_output.setAlignment(Qt.AlignmentFlag.AlignCenter)
         out_layout.addWidget(self.btn_set_output)
         out_layout.addWidget(self.lbl_output)
-        adv_layout.addLayout(out_layout)
+        row1_layout.addLayout(out_layout)
+        
+        adv_layout.addLayout(row1_layout)
+        
+        # Row 2 (AI Cover Gen RVC Settings)
+        row2_layout = QHBoxLayout()
+        
+        # Index Rate
+        idx_layout = QVBoxLayout()
+        self.lbl_idx_rate = QLabel("İndex Oranı: 0.75")
+        self.lbl_idx_rate.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.slider_idx = QSlider(Qt.Orientation.Horizontal)
+        self.slider_idx.setRange(0, 100)
+        self.slider_idx.setValue(75)
+        self.slider_idx.valueChanged.connect(lambda v: self.lbl_idx_rate.setText(f"İndex Oranı: {v/100:.2f}"))
+        idx_layout.addWidget(self.lbl_idx_rate)
+        idx_layout.addWidget(self.slider_idx)
+        row2_layout.addLayout(idx_layout)
+        
+        # RMS Mix Rate
+        rms_layout = QVBoxLayout()
+        self.lbl_rms = QLabel("RMS Mix Oranı: 0.25")
+        self.lbl_rms.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.slider_rms = QSlider(Qt.Orientation.Horizontal)
+        self.slider_rms.setRange(0, 100)
+        self.slider_rms.setValue(25)
+        self.slider_rms.valueChanged.connect(lambda v: self.lbl_rms.setText(f"RMS Mix Oranı: {v/100:.2f}"))
+        rms_layout.addWidget(self.lbl_rms)
+        rms_layout.addWidget(self.slider_rms)
+        row2_layout.addLayout(rms_layout)
+        
+        # Protect
+        protect_layout = QVBoxLayout()
+        self.lbl_protect = QLabel("Nefes Koruma: 0.33")
+        self.lbl_protect.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.slider_protect = QSlider(Qt.Orientation.Horizontal)
+        self.slider_protect.setRange(0, 50)
+        self.slider_protect.setValue(33)
+        self.slider_protect.valueChanged.connect(lambda v: self.lbl_protect.setText(f"Nefes Koruma: {v/100:.2f}"))
+        protect_layout.addWidget(self.lbl_protect)
+        protect_layout.addWidget(self.slider_protect)
+        row2_layout.addLayout(protect_layout)
+        
+        adv_layout.addLayout(row2_layout)
         
         panel_layout.addLayout(adv_layout)
 
@@ -371,7 +422,14 @@ class RipleytiaAppWindow(QMainWindow):
         # Worker thread
         pitch_val = self.slider_pitch.value()
         algo_val = self.combo_algo.currentText()
-        self.worker = CoverWorker(self.pipeline, self.selected_audio, self.selected_model, self.selected_index, pitch_val, algo_val, self.selected_output_dir)
+        idx_val = self.slider_idx.value() / 100.0
+        rms_val = self.slider_rms.value() / 100.0
+        protect_val = self.slider_protect.value() / 100.0
+        
+        self.worker = CoverWorker(
+            self.pipeline, self.selected_audio, self.selected_model, self.selected_index, 
+            pitch_val, algo_val, idx_val, rms_val, protect_val, self.selected_output_dir
+        )
         self.worker.finished.connect(self.on_processing_finished)
         self.worker.start()
         
