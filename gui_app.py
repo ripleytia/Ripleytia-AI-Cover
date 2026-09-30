@@ -3,13 +3,28 @@ import math
 import random
 import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-                             QPushButton, QLabel, QGraphicsDropShadowEffect, QFrame, QProgressBar, QSlider)
+                             QPushButton, QLabel, QGraphicsDropShadowEffect, QFrame, QProgressBar, QSlider, QFileDialog, QComboBox)
 from PyQt6.QtGui import QPainter, QPainterPath, QPen, QColor, QFont, QPixmap
-from PyQt6.QtCore import Qt, QTimer, QPointF, QUrl
+from PyQt6.QtCore import Qt, QTimer, QPointF, QUrl, QThread, pyqtSignal
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 
 from gui_theme import RipleytiaDesignSystem
 from audio_mixer import RipleytiaCoverPipeline
+
+class CoverWorker(QThread):
+    finished = pyqtSignal(bool, str)
+    
+    def __init__(self, pipeline, input_audio, model_name, pitch_algo):
+        super().__init__()
+        self.pipeline = pipeline
+        self.input_audio = input_audio
+        self.model_name = model_name
+        self.pitch_algo = pitch_algo
+        
+    def run(self):
+        success, result_path = self.pipeline.run_pipeline(self.input_audio, self.model_name, self.pitch_algo)
+        self.finished.emit(success, result_path)
+
 
 class RipleytiaVFXLightningWidget(QWidget):
     """
@@ -20,31 +35,24 @@ class RipleytiaVFXLightningWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        
         self.is_processing = False
         self.time_counter = 0.0
         
-        # Smooth 60 FPS Loop
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_vfx)
         self.timer.start(16) 
-        
         self.bolts = []
         
     def set_processing_state(self, state: bool):
         self.is_processing = state
         
     def update_vfx(self):
-        # İşlem sırasında hız 3 katına çıkar (Process-Reactive)
         self.time_counter += 0.15 if self.is_processing else 0.05
-        
         chance = 0.25 if self.is_processing else 0.02
         if random.random() < chance:
             self._generate_bolt()
-            
         for bolt in self.bolts:
             bolt['alpha'] -= 20 if self.is_processing else 8
-            
         self.bolts = [b for b in self.bolts if b['alpha'] > 0]
         self.update()
 
@@ -67,7 +75,6 @@ class RipleytiaVFXLightningWidget(QWidget):
     def _generate_bolt(self):
         w, h = self.width(), self.height()
         if w < 10 or h < 10: return
-        
         edge = random.choice(['top', 'bottom', 'left', 'right'])
         if edge == 'top':
             p1 = QPointF(0, random.uniform(0, 30))
@@ -84,9 +91,7 @@ class RipleytiaVFXLightningWidget(QWidget):
             
         iterations = 5 if self.is_processing else 4
         displacement = 60.0 if self.is_processing else 25.0
-        
         path_points = self._midpoint_displacement(p1, p2, displacement, iterations)
-        
         self.bolts.append({
             'points': path_points,
             'alpha': 255,
@@ -96,7 +101,6 @@ class RipleytiaVFXLightningWidget(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
         sine_val = (math.sin(self.time_counter) + 1.0) / 2.0 
         
         for bolt in self.bolts:
@@ -124,16 +128,17 @@ class RipleytiaVFXLightningWidget(QWidget):
             painter.setPen(core_pen)
             painter.drawPath(path)
 
-
 class RipleytiaAppWindow(QMainWindow):
     """Ripleytia AI Cover Masaüstü Arayüzü (Stüdyo Kalitesi)"""
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Ripleytia AI Automated Cover - v1.0.0")
-        self.resize(1000, 700)
+        self.resize(1000, 750)
         self.setStyleSheet(RipleytiaDesignSystem.get_main_stylesheet())
         
         self.pipeline = RipleytiaCoverPipeline()
+        self.selected_audio = None
+        self.selected_model = None
         self._init_ui()
         
     def _init_ui(self):
@@ -153,7 +158,7 @@ class RipleytiaAppWindow(QMainWindow):
         glass_panel.setGraphicsEffect(shadow)
         self.panel_shadow = shadow
         
-        # LOGO EKLENTİSİ
+        # LOGO
         self.logo_label = QLabel()
         self.logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo_path = RipleytiaDesignSystem.get_resource_path("logo.jpg")
@@ -168,8 +173,31 @@ class RipleytiaAppWindow(QMainWindow):
         title.setFont(font)
         title.setStyleSheet(f"color: {RipleytiaDesignSystem.COLORS.NEON_PURPLE};")
         panel_layout.addWidget(title)
+        
+        # --- KONTROLLER ---
+        controls_layout = QHBoxLayout()
+        
+        # 1. Şarkı Yükleme
+        song_layout = QVBoxLayout()
+        self.btn_load_song = QPushButton("🎵 ŞARKI YÜKLE")
+        self.btn_load_song.clicked.connect(self.load_song)
+        self.lbl_song = QLabel("Seçilen Şarkı: Yok")
+        song_layout.addWidget(self.btn_load_song)
+        song_layout.addWidget(self.lbl_song)
+        controls_layout.addLayout(song_layout)
+        
+        # 2. Model Yükleme
+        model_layout = QVBoxLayout()
+        self.btn_load_model = QPushButton("🎤 RVC MODEL SEÇ (.pth)")
+        self.btn_load_model.clicked.connect(self.load_model)
+        self.lbl_model = QLabel("Seçilen Model: Yok")
+        model_layout.addWidget(self.btn_load_model)
+        model_layout.addWidget(self.lbl_model)
+        controls_layout.addLayout(model_layout)
+        
+        panel_layout.addLayout(controls_layout)
 
-        # İlerleme Çubuğu (Kıvılcım Etkileşimli)
+        # İlerleme Çubuğu
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
@@ -191,13 +219,13 @@ class RipleytiaAppWindow(QMainWindow):
         """)
         panel_layout.addWidget(self.progress_bar)
         
-        self.btn_process = QPushButton("ŞARKIYI İŞLE (TEST)")
-        self.btn_process.clicked.connect(self.toggle_processing)
+        self.btn_process = QPushButton("⚡ ŞARKIYI İŞLE")
+        self.btn_process.clicked.connect(self.start_processing)
         panel_layout.addWidget(self.btn_process, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Entegre Stüdyo Önizleme Oyuncusu (Audio Preview Player)
+        # Audio Preview Player
         self.player_panel = QFrame()
-        self.player_panel.hide() # İşlem bitene kadar gizli
+        self.player_panel.hide()
         player_layout = QHBoxLayout(self.player_panel)
         
         self.btn_play = QPushButton("▶ OYNAT")
@@ -212,7 +240,7 @@ class RipleytiaAppWindow(QMainWindow):
         panel_layout.addWidget(self.player_panel)
         main_layout.addWidget(glass_panel)
         
-        # QMediaPlayer Kurulumu (PyQt6.QtMultimedia)
+        # Player Setup
         self.player = QMediaPlayer()
         self.audio_output = QAudioOutput()
         self.player.setAudioOutput(self.audio_output)
@@ -231,26 +259,57 @@ class RipleytiaAppWindow(QMainWindow):
         super().resizeEvent(event)
         if hasattr(self, 'vfx_layer'):
             self.vfx_layer.resize(self.width(), self.height())
+            
+    def load_song(self):
+        file, _ = QFileDialog.getOpenFileName(self, "Şarkı Seç (MP3/WAV)", "", "Audio Files (*.mp3 *.wav)")
+        if file:
+            self.selected_audio = file
+            self.lbl_song.setText(f"Şarkı: {os.path.basename(file)}")
+            
+    def load_model(self):
+        file, _ = QFileDialog.getOpenFileName(self, "RVC Model Seç (.pth)", "", "PyTorch Models (*.pth)")
+        if file:
+            self.selected_model = file
+            self.lbl_model.setText(f"Model: {os.path.basename(file)}")
 
-    def toggle_processing(self):
-        is_proc = not self.vfx_layer.is_processing
-        self.vfx_layer.set_processing_state(is_proc)
+    def start_processing(self):
+        if not self.selected_audio or not self.selected_model:
+            return
+            
+        self.btn_process.setEnabled(False)
+        self.btn_load_song.setEnabled(False)
+        self.btn_load_model.setEnabled(False)
+        self.btn_process.setText("YAPAY ZEKA İŞLİYOR... (LÜTFEN BEKLEYİN)")
+        self.progress_bar.setValue(50)
+        self.panel_shadow.setBlurRadius(RipleytiaDesignSystem.GLOW_PROCESSING_RADIUS)
+        self.panel_shadow.setColor(QColor(RipleytiaDesignSystem.COLORS.CYBER_PINK))
         
-        if is_proc:
-            self.btn_process.setText("İŞLENİYOR... (VFX AKTİF)")
-            self.panel_shadow.setBlurRadius(RipleytiaDesignSystem.GLOW_PROCESSING_RADIUS)
-            self.panel_shadow.setColor(QColor(RipleytiaDesignSystem.COLORS.CYBER_PINK))
-            self.progress_bar.setValue(50) # Örnek İlerleme
-            self.player_panel.hide()
-            self.player.stop()
-        else:
-            self.btn_process.setText("ŞARKIYI İŞLE")
-            self.panel_shadow.setBlurRadius(RipleytiaDesignSystem.GLOW_IDLE_RADIUS)
-            self.panel_shadow.setColor(QColor(RipleytiaDesignSystem.COLORS.NEON_PURPLE))
+        self.vfx_layer.set_processing_state(True)
+        self.player_panel.hide()
+        self.player.stop()
+        
+        # Worker thread
+        model_name = os.path.splitext(os.path.basename(self.selected_model))[0]
+        self.worker = CoverWorker(self.pipeline, self.selected_audio, model_name, 'rmvpe')
+        self.worker.finished.connect(self.on_processing_finished)
+        self.worker.start()
+        
+    def on_processing_finished(self, success, result_path):
+        self.vfx_layer.set_processing_state(False)
+        self.btn_process.setEnabled(True)
+        self.btn_load_song.setEnabled(True)
+        self.btn_load_model.setEnabled(True)
+        self.panel_shadow.setBlurRadius(RipleytiaDesignSystem.GLOW_IDLE_RADIUS)
+        self.panel_shadow.setColor(QColor(RipleytiaDesignSystem.COLORS.NEON_PURPLE))
+        
+        if success:
             self.progress_bar.setValue(100)
+            self.btn_process.setText("⚡ BAŞARILI! YENİ ŞARKI İŞLE")
+            self.player.setSource(QUrl.fromLocalFile(result_path))
             self.player_panel.show()
-            # Örnek ses yükleme
-            # self.player.setSource(QUrl.fromLocalFile("path/to/final_cover.wav"))
+        else:
+            self.progress_bar.setValue(0)
+            self.btn_process.setText("❌ HATA OLUŞTU, TEKRAR DENE")
 
     def toggle_playback(self):
         if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
