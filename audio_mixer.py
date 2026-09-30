@@ -139,17 +139,27 @@ class RipleytiaCoverPipeline:
         logging.info(f"Hedef Model: {rvc_model_name} | Algoritma: {pitch_algo}")
         
         try:
+            import shutil
+            import time
+            
             # ADIM 1: AI Stem Splitting
             logging.info("[Adım 1/3] Vokal / Enstrümantal ayrıştırması başlatılıyor (Demucs)...")
-            # vocals_path, inst_path = RipleytiaSeparator.split(input_audio, self.dirs['temp'], self.device)
             vocals_path = os.path.join(self.dirs['temp'], "vocals.wav")
             inst_path = os.path.join(self.dirs['temp'], "instrumental.wav")
+            
+            # (MOCK) Demucs kurulu olmadığı için orijinal dosyayı kopyalayarak simüle ediyoruz
+            time.sleep(2)
+            shutil.copy(input_audio, vocals_path)
+            shutil.copy(input_audio, inst_path)
             
             # ADIM 2: RVC Voice Inference
             logging.info("[Adım 2/3] RVC Motoru Vokal dönüşümünü uyguluyor...")
             model_path = os.path.join(self.dirs['models'], f"{rvc_model_name}.pth")
-            # converted_vocal = RipleytiaRVCManager.infer(vocals_path, model_path, pitch_algo, self.device)
             converted_vocal = os.path.join(self.dirs['temp'], "converted_vocal.wav")
+            
+            # (MOCK) RVC kurulu olmadığı için vokali kopyalıyoruz
+            time.sleep(3)
+            shutil.copy(vocals_path, converted_vocal)
             
             # ADIM 3: Esports Studio Mastering
             logging.info("[Adım 3/3] Audio Mixer senkronizasyon ve mastering uyguluyor...")

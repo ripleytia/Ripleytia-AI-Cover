@@ -186,12 +186,21 @@ class RipleytiaAppWindow(QMainWindow):
         song_layout.addWidget(self.lbl_song)
         controls_layout.addLayout(song_layout)
         
-        # 2. Model Yükleme
+        # 2. Model ve İndex Yükleme
         model_layout = QVBoxLayout()
-        self.btn_load_model = QPushButton("🎤 RVC MODEL SEÇ (.pth)")
+        model_btn_layout = QHBoxLayout()
+        
+        self.btn_load_model = QPushButton("🎤 MODEL (.pth)")
         self.btn_load_model.clicked.connect(self.load_model)
-        self.lbl_model = QLabel("Seçilen Model: Yok")
-        model_layout.addWidget(self.btn_load_model)
+        
+        self.btn_load_index = QPushButton("📄 İNDEX (.index)")
+        self.btn_load_index.clicked.connect(self.load_index)
+        
+        model_btn_layout.addWidget(self.btn_load_model)
+        model_btn_layout.addWidget(self.btn_load_index)
+        
+        self.lbl_model = QLabel("Model: Yok | İndex: Yok")
+        model_layout.addLayout(model_btn_layout)
         model_layout.addWidget(self.lbl_model)
         controls_layout.addLayout(model_layout)
         
@@ -270,7 +279,18 @@ class RipleytiaAppWindow(QMainWindow):
         file, _ = QFileDialog.getOpenFileName(self, "RVC Model Seç (.pth)", "", "PyTorch Models (*.pth)")
         if file:
             self.selected_model = file
-            self.lbl_model.setText(f"Model: {os.path.basename(file)}")
+            self._update_model_label()
+            
+    def load_index(self):
+        file, _ = QFileDialog.getOpenFileName(self, "İndex Dosyası Seç (.index)", "", "Index Files (*.index)")
+        if file:
+            self.selected_index = file
+            self._update_model_label()
+            
+    def _update_model_label(self):
+        m_name = os.path.basename(self.selected_model) if self.selected_model else "Yok"
+        i_name = os.path.basename(self.selected_index) if hasattr(self, 'selected_index') and self.selected_index else "Yok"
+        self.lbl_model.setText(f"Model: {m_name} | İndex: {i_name}")
 
     def start_processing(self):
         if not self.selected_audio or not self.selected_model:
@@ -279,6 +299,7 @@ class RipleytiaAppWindow(QMainWindow):
         self.btn_process.setEnabled(False)
         self.btn_load_song.setEnabled(False)
         self.btn_load_model.setEnabled(False)
+        self.btn_load_index.setEnabled(False)
         self.btn_process.setText("YAPAY ZEKA İŞLİYOR... (LÜTFEN BEKLEYİN)")
         self.progress_bar.setValue(50)
         self.panel_shadow.setBlurRadius(RipleytiaDesignSystem.GLOW_PROCESSING_RADIUS)
@@ -299,6 +320,7 @@ class RipleytiaAppWindow(QMainWindow):
         self.btn_process.setEnabled(True)
         self.btn_load_song.setEnabled(True)
         self.btn_load_model.setEnabled(True)
+        self.btn_load_index.setEnabled(True)
         self.panel_shadow.setBlurRadius(RipleytiaDesignSystem.GLOW_IDLE_RADIUS)
         self.panel_shadow.setColor(QColor(RipleytiaDesignSystem.COLORS.NEON_PURPLE))
         
