@@ -170,11 +170,16 @@ class RipleytiaCoverPipeline:
                 rvc.load_model(model_path)
                 if index_path and os.path.exists(index_path):
                     rvc.set_index(index_path)
+                    
+                # Parametreleri rvc-python yapısına uygun şekilde ata
+                rvc.set_params(
+                    f0up_key=pitch_val,
+                    f0method=algo_val
+                )
+                
                 rvc.infer_file(
                     input_path=vocals_path,
-                    output_path=converted_vocal,
-                    pitch_algo=algo_val,
-                    pitch_shift=pitch_val
+                    output_path=converted_vocal
                 )
             except ImportError:
                 raise ImportError("Yapay Zeka (RVC) Motoru bulunamadı! Lütfen 'pip install rvc-python' komutu ile kurunuz.")
