@@ -7,11 +7,9 @@ import traceback
 from pydub import AudioSegment
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QMessageBox
 from PyQt6.QtCore import Qt, QTimer, QPointF
-from PyQt6.QtGui import QPainter, QPainterPath, QPen, QColor, QFont
+from PyQt6.QtGui import QPainter, QPainterPath, QPen, QColor, QFont, QPixmap
 from gui_app import RipleytiaAppWindow
 from gui_theme import RipleytiaDesignSystem
-
-# ... (Splash Screen sınıfı kodları aynı kalır)
 
 class RipleytiaSplashScreen(QWidget):
     """
@@ -27,6 +25,15 @@ class RipleytiaSplashScreen(QWidget):
         
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        # LOGO EKLENTİSİ
+        self.logo_label = QLabel()
+        self.logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo_path = RipleytiaDesignSystem.get_resource_path("logo.jpg")
+        if os.path.exists(logo_path):
+            pixmap = QPixmap(logo_path).scaled(150, 150, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            self.logo_label.setPixmap(pixmap)
+        layout.addWidget(self.logo_label)
         
         self.title = QLabel("RIPLEYTIA\nAI COVER")
         self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)

@@ -4,7 +4,7 @@ import random
 import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QLabel, QGraphicsDropShadowEffect, QFrame, QProgressBar, QSlider)
-from PyQt6.QtGui import QPainter, QPainterPath, QPen, QColor, QFont
+from PyQt6.QtGui import QPainter, QPainterPath, QPen, QColor, QFont, QPixmap
 from PyQt6.QtCore import Qt, QTimer, QPointF, QUrl
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 
@@ -153,6 +153,15 @@ class RipleytiaAppWindow(QMainWindow):
         glass_panel.setGraphicsEffect(shadow)
         self.panel_shadow = shadow
         
+        # LOGO EKLENTİSİ
+        self.logo_label = QLabel()
+        self.logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo_path = RipleytiaDesignSystem.get_resource_path("logo.jpg")
+        if os.path.exists(logo_path):
+            pixmap = QPixmap(logo_path).scaled(120, 120, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            self.logo_label.setPixmap(pixmap)
+        panel_layout.addWidget(self.logo_label)
+
         title = QLabel("RIPLEYTIA AI COVER STUDIO")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         font = QFont("Impact", 24)
