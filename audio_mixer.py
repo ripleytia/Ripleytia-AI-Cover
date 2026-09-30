@@ -131,39 +131,64 @@ class RipleytiaCoverPipeline:
         for d in self.dirs.values():
             os.makedirs(d, exist_ok=True)
             
-    def run_pipeline(self, input_audio: str, rvc_model_name: str, pitch_algo: str = 'rmvpe'):
+    def run_pipeline(self, input_audio: str, model_path: str, index_path: str, pitch_val: int, algo_val: str, output_dir: str = None):
         """
         Try-except bypass duvarları içeren kilitlenme korumalı ana Cover akışı.
         """
         logging.info(f"=== RIPLEYTIA AI COVER PIPELINE BAŞLATILDI ===")
-        logging.info(f"Hedef Model: {rvc_model_name} | Algoritma: {pitch_algo}")
+        logging.info(f"Hedef Model: {model_path} | Algoritma: {algo_val} | Pitch: {pitch_val}")
         
         try:
-            import shutil
-            import time
+            import subprocess
             
             # ADIM 1: AI Stem Splitting
             logging.info("[Adım 1/3] Vokal / Enstrümantal ayrıştırması başlatılıyor (Demucs)...")
-            vocals_path = os.path.join(self.dirs['temp'], "vocals.wav")
-            inst_path = os.path.join(self.dirs['temp'], "instrumental.wav")
+            base_name = os.path.splitext(os.path.basename(input_audio))[0]
             
-            # (MOCK) Demucs kurulu olmadığı için orijinal dosyayı kopyalayarak simüle ediyoruz
-            time.sleep(2)
-            shutil.copy(input_audio, vocals_path)
-            shutil.copy(input_audio, inst_path)
+            cmd_demucs = [
+                "demucs", "--two-stems=vocals", "-n", "htdemucs",
+                "-o", self.dirs['temp'],
+                input_audio
+            ]
+            process = subprocess.Popen(cmd_demucs, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            stdout, stderr = process.communicate()
+            
+            out_folder = os.path.join(self.dirs['temp'], "htdemucs", base_name)
+            vocals_path = os.path.join(out_folder, "vocals.wav")
+            inst_path = os.path.join(out_folder, "no_vocals.wav")
+            
+            if not os.path.exists(vocals_path) or not os.path.exists(inst_path):
+                raise Exception(f"Demucs ayırma işlemi başarısız oldu! (Belki Demucs yüklü değil?)\nHata: {stderr}")
             
             # ADIM 2: RVC Voice Inference
             logging.info("[Adım 2/3] RVC Motoru Vokal dönüşümünü uyguluyor...")
-            model_path = os.path.join(self.dirs['models'], f"{rvc_model_name}.pth")
             converted_vocal = os.path.join(self.dirs['temp'], "converted_vocal.wav")
             
-            # (MOCK) RVC kurulu olmadığı için vokali kopyalıyoruz
-            time.sleep(3)
-            shutil.copy(vocals_path, converted_vocal)
+            try:
+                from rvc_python.infer import RVCInference
+                rvc = RVCInference(device="cuda" if self.device_name else "cpu")
+                rvc.load_model(model_path)
+                if index_path and os.path.exists(index_path):
+                    rvc.set_index(index_path)
+                rvc.infer_file(
+                    input_path=vocals_path,
+                    output_path=converted_vocal,
+                    pitch_algo=algo_val,
+                    pitch_shift=pitch_val
+                )
+            except ImportError:
+                raise ImportError("Yapay Zeka (RVC) Motoru bulunamadı! Lütfen 'pip install rvc-python' komutu ile kurunuz.")
+                
+            if not os.path.exists(converted_vocal):
+                raise Exception("RVC dönüştürme işlemi başarısız oldu!")
             
             # ADIM 3: Esports Studio Mastering
             logging.info("[Adım 3/3] Audio Mixer senkronizasyon ve mastering uyguluyor...")
-            final_output = os.path.join(self.dirs['output'], f"Ripleytia_Cover_{os.path.basename(input_audio)}")
+            if not output_dir:
+                output_dir = self.dirs['output']
+            os.makedirs(output_dir, exist_ok=True)
+            
+            final_output = os.path.join(output_dir, f"Ripleytia_Cover_{os.path.basename(input_audio)}")
             RipleytiaAudioMixer.mix_and_master(inst_path, converted_vocal, final_output)
             
             logging.info("=== PIPELINE BAŞARIYLA TAMAMLANDI ===")

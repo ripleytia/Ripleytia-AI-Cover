@@ -14,15 +14,25 @@ from audio_mixer import RipleytiaCoverPipeline
 class CoverWorker(QThread):
     finished = pyqtSignal(bool, str)
     
-    def __init__(self, pipeline, input_audio, model_name, pitch_algo):
+    def __init__(self, pipeline, input_audio, model_path, index_path, pitch_val, algo_val, output_dir):
         super().__init__()
         self.pipeline = pipeline
         self.input_audio = input_audio
-        self.model_name = model_name
-        self.pitch_algo = pitch_algo
+        self.model_path = model_path
+        self.index_path = index_path
+        self.pitch_val = pitch_val
+        self.algo_val = algo_val
+        self.output_dir = output_dir
         
     def run(self):
-        success, result_path = self.pipeline.run_pipeline(self.input_audio, self.model_name, self.pitch_algo)
+        success, result_path = self.pipeline.run_pipeline(
+            self.input_audio, 
+            self.model_path, 
+            self.index_path, 
+            self.pitch_val, 
+            self.algo_val, 
+            self.output_dir
+        )
         self.finished.emit(success, result_path)
 
 
@@ -139,6 +149,8 @@ class RipleytiaAppWindow(QMainWindow):
         self.pipeline = RipleytiaCoverPipeline()
         self.selected_audio = None
         self.selected_model = None
+        self.selected_index = None
+        self.selected_output_dir = None
         self._init_ui()
         
     def _init_ui(self):
@@ -205,6 +217,44 @@ class RipleytiaAppWindow(QMainWindow):
         controls_layout.addLayout(model_layout)
         
         panel_layout.addLayout(controls_layout)
+        
+        # --- İLERİ SEVİYE AYARLAR (PITCH, ALGO, ÇIKTI) ---
+        adv_layout = QHBoxLayout()
+        
+        # Pitch Ayarı
+        pitch_layout = QVBoxLayout()
+        self.lbl_pitch = QLabel("Pitch (Perde) Ayarı: 0")
+        self.lbl_pitch.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.slider_pitch = QSlider(Qt.Orientation.Horizontal)
+        self.slider_pitch.setRange(-12, 12)
+        self.slider_pitch.setValue(0)
+        self.slider_pitch.valueChanged.connect(self._update_pitch_label)
+        pitch_layout.addWidget(self.lbl_pitch)
+        pitch_layout.addWidget(self.slider_pitch)
+        adv_layout.addLayout(pitch_layout)
+        
+        # Algoritma (Tune) Seçimi
+        algo_layout = QVBoxLayout()
+        self.lbl_algo = QLabel("Tune Algoritması:")
+        self.lbl_algo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.combo_algo = QComboBox()
+        self.combo_algo.addItems(["rmvpe", "mangio-crepe", "harvest", "pm"])
+        self.combo_algo.setStyleSheet(f"background-color: {RipleytiaDesignSystem.COLORS.PANEL_BG}; color: white; padding: 5px;")
+        algo_layout.addWidget(self.lbl_algo)
+        algo_layout.addWidget(self.combo_algo)
+        adv_layout.addLayout(algo_layout)
+        
+        # Çıktı Klasörü
+        out_layout = QVBoxLayout()
+        self.btn_set_output = QPushButton("💾 ÇIKTI KLASÖRÜ SEÇ")
+        self.btn_set_output.clicked.connect(self.set_output_dir)
+        self.lbl_output = QLabel("Çıktı: Varsayılan (/output)")
+        self.lbl_output.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        out_layout.addWidget(self.btn_set_output)
+        out_layout.addWidget(self.lbl_output)
+        adv_layout.addLayout(out_layout)
+        
+        panel_layout.addLayout(adv_layout)
 
         # İlerleme Çubuğu
         self.progress_bar = QProgressBar()
@@ -269,6 +319,15 @@ class RipleytiaAppWindow(QMainWindow):
         if hasattr(self, 'vfx_layer'):
             self.vfx_layer.resize(self.width(), self.height())
             
+    def _update_pitch_label(self, value):
+        self.lbl_pitch.setText(f"Pitch (Perde) Ayarı: {value}")
+        
+    def set_output_dir(self):
+        dir_path = QFileDialog.getExistingDirectory(self, "Çıktı Klasörünü Seç")
+        if dir_path:
+            self.selected_output_dir = dir_path
+            self.lbl_output.setText(f"Çıktı: ...{dir_path[-15:]}")
+
     def load_song(self):
         file, _ = QFileDialog.getOpenFileName(self, "Şarkı Seç (MP3/WAV)", "", "Audio Files (*.mp3 *.wav)")
         if file:
@@ -310,8 +369,9 @@ class RipleytiaAppWindow(QMainWindow):
         self.player.stop()
         
         # Worker thread
-        model_name = os.path.splitext(os.path.basename(self.selected_model))[0]
-        self.worker = CoverWorker(self.pipeline, self.selected_audio, model_name, 'rmvpe')
+        pitch_val = self.slider_pitch.value()
+        algo_val = self.combo_algo.currentText()
+        self.worker = CoverWorker(self.pipeline, self.selected_audio, self.selected_model, self.selected_index, pitch_val, algo_val, self.selected_output_dir)
         self.worker.finished.connect(self.on_processing_finished)
         self.worker.start()
         
