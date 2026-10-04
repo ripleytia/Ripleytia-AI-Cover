@@ -19,6 +19,8 @@ Aşağıdan tek tıklamalı **Setup (Kurulum)** dosyasını indirerek yeni döne
     - **Highpass Filter:** Çamurlu alt frekans yankılarını temizler.
     - **Noise Gate:** Yankı kuyruklarını saniyesi saniyesine keserek robotikleşmeyi önler.
     - **Compressor:** Tüm kelimelerin ses düzeyini dengeler.
+
+*   📤 **Yeni Model Yükleme (Model Upload):** Yeni eklenen 'Yeni Model Yükle' butonu sayesinde indirdiğiniz .pth ve .index uzantılı RVC modellerini klasörlerle uğraşmadan direkt uygulama içerisinden kolayca ekleyebilirsiniz.
 *   📊 **Canlı Log Konsolu:** Arka planda açılan karmaşık CMD pencerelerine son! Uygulamanın en altında, anlık durumu gösteren canlı bir log konsolu var.
 *   💾 **Ayarları Kaydetme & İçe Aktarma:** "Ayarları Kaydet" butonu sayesinde; Pitch, Reverb, Noise Gate eşiği gibi sizin için en mükemmel olan değerleri kaydedin.
 *   🇹🇷 / 🇬🇧 **Çift Dil Desteği:** Sağ üst köşedeki butonla anında Türkçe ve İngilizce arasında geçiş yapabilirsiniz.
@@ -36,4 +38,5 @@ Aşağıdan tek tıklamalı **Setup (Kurulum)** dosyasını indirerek yeni döne
 4. Masaüstünüze gelen **Ripleytia AI Cover V2** logolu kısayola çift tıklayarak profesyonel uygulamanızı hemen kullanmaya başlayabilirsiniz!
 
 *(Not: Kurulumun başlayabilmesi için bilgisayarınızda [Python 3.10](https://www.python.org/downloads/) yüklü olması ve "Add Python to PATH" işaretli olması gerekmektedir.)*
+
 
