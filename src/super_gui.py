@@ -56,7 +56,7 @@ translations = {
         "tab_fx": "Effects (Reverb)",
         "tab_adv": "Advanced Settings",
         "vocal_pitch": "Vocal Pitch Change (Octaves)",
-        "overall_pitch": "Overall Pitch Change (Semitones)",
+        "overall_pitch": "Vocal Pitch Change (Semitones)",
         "main_gain": "Main Vocals Gain (dB)",
         "backup_gain": "Backup Vocals Gain (dB)",
         "inst_gain": "Instrumentals Gain (dB)",
@@ -101,7 +101,7 @@ translations = {
         "tab_fx": "Efektler (Reverb)",
         "tab_adv": "Gelişmiş Ayarlar",
         "vocal_pitch": "Vokal Ton (Pitch) Değişimi (Oktav)",
-        "overall_pitch": "Genel Ton Değişimi (Yarım Sesler)",
+        "overall_pitch": "Vokal Ton Değişimi (Yarım Sesler)",
         "main_gain": "Ana Vokal Ses Seviyesi (dB)",
         "backup_gain": "Arka Vokal Ses Seviyesi (dB)",
         "inst_gain": "Enstrüman Ses Seviyesi (dB)",
@@ -708,5 +708,6 @@ class App(ctk.CTk):
 if __name__ == "__main__":
     app = App()
     app.mainloop()
+
 
 
