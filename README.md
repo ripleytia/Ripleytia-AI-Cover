@@ -1,52 +1,36 @@
-# 🚀 Ripleytia AI Automated Cover (v1.0.0) - Evrensel Kararlı Sürüm
+<div align="center">
+<img src="logo.jpg" width="200">
+</div>
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/ripleytia/ripleytia-ai-cover/main/assets/logo.jpg" width="250" alt="Ripleytia AI Cover Logo">
-</p>
+# 🚀 Ripleytia AI Cover V2 (Beta) - Büyük Güncelleme!
 
-Ripleytia'nın **Gothic Purple** siberpunk estetiğine sahip profesyonel ses stüdyosu artık kullanıma hazır! Meta Demucs v4 ve RVC motorlarının gücüyle, evrensel yapay zeka cover'larınızı espor stüdyosu kalitesinde (sıfır detone, sıfır cızırtı) üretin.
+Uzun bir aradan sonra, yapay zeka müzik işleme deneyimini tamamen baştan yazarak **V2 (Beta)** sürümü ile karşınızdayız. Eski versiyondaki tüm sorunları çözmekle kalmadık, uygulamayı profesyonel bir stüdyo yazılımına dönüştürdük! 
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-blue?style=for-the-badge&logo=windows" />
-  <img src="https://img.shields.io/badge/Python-3.10%2B-blueviolet?style=for-the-badge&logo=python" />
-  <img src="https://img.shields.io/badge/UI-PyQt6-brightgreen?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Sürüm-v1.0.0%20(Stable)-purple?style=for-the-badge" />
-</p>
+Aşağıdan tek tıklamalı **Setup (Kurulum)** dosyasını indirerek yeni döneme katılabilirsiniz.
 
-## 🌟 Öne Çıkan Özellikler (v1.0.0 Stable)
+---
 
-### 1. 🎵 Gelişmiş Yapay Zeka Motorları
-* **Meta Demucs v4 Ayrıştırma:** Şarkıları (MP3/WAV) kayıpsız olarak Vokal ve Altyapı (Instrumental) olarak otomatik böler.
-* **RVC v2 Inference (RMVPE Algoritması):** Pürüzsüz ve sıfır detone hedef vokal dönüşümü yapar.
-* **Device Guard:** Otomatik NVIDIA CUDA donanım hızlandırma tespiti yapar, yoksa güvenli şekilde CPU fallback moduna düşer.
+## 🌟 V2 (Beta) ile Gelen Yenilikler
 
-### 2. 🎛️ Pydub Stüdyo Masteringi
-* **Temporal Alignment:** Ses dosyalarındaki faz kaymalarını (başlangıç sessizliklerini) budayarak milisaniyelik senkronizasyon sağlar.
-* **RMS Auto-Gain:** Vokal ve enstrümantal seslerin ortalama desibel enerjilerini (RMS) hesaplayıp vokali daima müziğin **+3 dB** üstünde (altın oran) tutar.
-* **Anti-Clipping / Limitör:** Dijital ses patlamalarını önlemek için stüdyo tipi dinamik kompresör ve `-1.0 dBFS True Peak` limitörü uygular.
+*   🎨 **Tamamen Yeni Profesyonel Arayüz (UI):** "Ripleytia Gothic Purple-Dark" temasıyla artık göz yormayan, koyu ve çok daha profesyonel bir görünüme sahip. Logolar ve menüler baştan tasarlandı.
+*   🧠 **Gelişmiş UVR5 Modeli Desteği:** Artık vokalleri ayırırken hangi UVR5 yapay zeka modelini (`UVR-MDX-NET-Voc_FT`, `KARA` vb.) kullanacağınızı arayüzden bizzat seçebilirsiniz. Sesi ayırırken gereksiz adımları atlayarak işlemleri hızlandırır.
+*   🚫 **Orijinal Sesin Sızmasına Son (Mute Backup Vocals):** Eski sürümde olan, şarkının orijinal sanatçısının sesinin yankı olarak arkadan gelmesi (Backup Vokal sızıntısı) sorunu, eklenen "Mute Backup Vocals" özelliği ile **tamamen** çözüldü!
+*   🎛️ **Agresif Yankı Temizleme (Aggressive DeReverb):** Şarkıdaki eko ve yankıları iki katmanlı olarak temizleyen özel bir filtre eklendi.
+*   📊 **Canlı Log Konsolu:** Arka planda açılan o karmaşık siyah ekran (CMD) pencerelerine son! Uygulamanın en altında, mor yazılarla işlemin hangi aşamada olduğunu anlık gösteren bir konsol var.
+*   💾 **Ayarları Kaydetme & İçe Aktarma:** "Ayarları Kaydet" butonu sayesinde; Pitch, Reverb, Gain gibi sizin için en mükemmel olan değerleri kaydedin. Uygulamayı yeniden açtığınızda her şey bıraktığınız gibi kalsın.
+*   🇹🇷 / 🇬🇧 **Çift Dil Desteği:** Sağ üst köşedeki butonla anında Türkçe ve İngilizce arasında geçiş yapabilirsiniz.
+*   📁 **Özel Çıktı Klasörü:** Çıktıların nereye kaydedileceğini uygulama içinden "Klasör Seç" butonuyla artık siz belirliyorsunuz.
+*   ⚡ **Tek Tıkla Otomatik Kurulum (Setup):** İhtiyacınız olan CUDA (Nvidia GPU), Pytorch ve diğer tüm kütüphaneler Setup dosyası tarafından otomatik kurulur.
 
-### 3. ⚡ Process-Reactive VFX Arayüzü (PyQt6)
-* **Animasyonlu Splash Screen:** Uygulama açılırken çerçevesiz ve saydam, merkezden dışa doğru yayılan şimşek emisyonlarına sahip giriş ekranı.
-* **Dinamik Şimşek Motoru (Midpoint Displacement):** Yapay zeka ses işlerken ekranda çakan, hızlanan ve ritmik nefes alan Neon Mor / Siber Pembe prosedürel şimşekler.
-* **Entegre Oynatıcı:** Dönüştürülen Cover şarkıyı anında dinlemek için native `QtMultimedia` oynatıcısı.
+---
 
-## 📦 Kurulum ve Kullanım (Evrensel Dağıtım)
-Bilgisayarınızda Python, PyTorch veya FFmpeg kurulu olmasına gerek yoktur! Gömülü FFmpeg ve PyInstaller altyapısı sayesinde **Tak-Çalıştır (Portable)** mimariye sahiptir.
+## 📥 İndirme ve Kurulum
 
-1. `Releases` sekmesinden **`Ripleytia_AI_Cover_v1.0.0_Setup.zip`** dosyasını indirin.
-2. ZIP dosyasını dilediğiniz bir klasöre çıkartın.
-3. Klasör içindeki `Ripleytia_AI_Cover.exe` dosyasına çift tıklayarak uygulamayı başlatın.
-*(Not: Kendi modellerinizi `/models` klasörüne, icon vs gibi kaynakları `/assets` klasörüne ekleyebilirsiniz.)*
+1. Aşağıdaki **Assets** bölümünden `Ripleytia AI Cover V2 Beta Setup.exe` dosyasını indirin.
+2. Programı çalıştırın ve kurmak istediğiniz dizini (örneğin Masaüstü) seçip `Install` butonuna basın.
+3. Arşivden çıkarma işlemi bittikten sonra ekranda siyah bir CMD penceresi (Kurulum Ekranı) açılacaktır. 
+   *(Bu ekranda uygulamanın çalışması için gerekli olan GPU (CUDA) kütüphaneleri, gereksinimler ve yapay zeka modelleri otomatik indirilip kurulacaktır. İnternet hızınıza bağlı olarak birkaç dakika sürebilir. Lütfen pencerenin kapanmasını bekleyin.)*
+4. Masaüstünüze gelen **Ripleytia AI Cover V2** logolu kısayola çift tıklayarak profesyonel uygulamanızı hemen kullanmaya başlayabilirsiniz!
 
-## 🛠️ Geliştiriciler İçin
-Projeyi kaynak kodundan çalıştırmak isterseniz:
-```bash
-# Gereksinimleri Yükle (CUDA destekli evrensel kilidi içerir)
-pip install -r requirements.txt
+*(Not: Kurulumun başlayabilmesi için bilgisayarınızda [Python 3.10](https://www.python.org/downloads/) sürümünün yüklü olması ve kurarken "Add Python to PATH" seçeneğinin işaretli olması gerekmektedir.)*
 
-# Uygulamayı Başlat
-python main.py
-
-# Tek Tıkla PyInstaller (Dağıtım) Derlemesi
-python build_deploy.py
-```
