@@ -40,3 +40,39 @@ Aşağıdan tek tıklamalı **Setup (Kurulum)** dosyasını indirerek yeni döne
 *(Not: Kurulumun başlayabilmesi için bilgisayarınızda [Python 3.10](https://www.python.org/downloads/) yüklü olması ve "Add Python to PATH" işaretli olması gerekmektedir.)*
 
 
+---
+
+## 🛠️ Manuel Kurulum (Geliştiriciler İçin)
+
+Eğer .exe kurulum dosyası kullanmak istemiyorsanız veya kaynak kod üzerinden direkt çalıştırmak istiyorsanız, uygulamanın çalışması için aşağıdaki komutları sırasıyla terminalinizde (CMD/PowerShell) çalıştırabilirsiniz:
+
+1. Depoyu bilgisayarınıza indirin:
+   ``bash
+   git clone https://github.com/ripleytia/Ripleytia-AI-Cover.git
+   cd Ripleytia-AI-Cover
+   ``
+2. Python sanal ortamını oluşturun ve aktif edin:
+   ``bash
+   python -m venv venv
+   # Windows için:
+   call venv\Scripts\activate
+   # Linux/Mac için:
+   source venv/bin/activate
+   ``
+3. Gerekli kütüphaneleri yükleyin:
+   ``bash
+   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+   pip install -r requirements.txt
+   ``
+4. UVR5 ve RVC modellerini indirin:
+   ``bash
+   python src/download_models.py
+   ``
+5. Uygulamayı başlatın:
+   ``bash
+   python src/super_gui.py
+   ``
+
+---
+**Not (Şeffaflık):** Releases bölümündeki Setup.exe dosyası, uygulamanın kaynak kodlarının ve kurulum scriptinin (Install.bat) standart C# .NET derleyicisi (csc.exe) ile sıkıştırılıp paketlenmiş halidir. Açık kaynaklı projelere olan güven prensibimiz gereği, dileyen herkes kodları manuel olarak çalıştırabilir.
+
