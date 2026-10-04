@@ -13,14 +13,17 @@ Aşağıdan tek tıklamalı **Setup (Kurulum)** dosyasını indirerek yeni döne
 ## 🌟 V2 (Beta) ile Gelen Yenilikler
 
 *   🎨 **Tamamen Yeni Profesyonel Arayüz (UI):** "Ripleytia Gothic Purple-Dark" temasıyla artık göz yormayan, koyu ve çok daha profesyonel bir görünüme sahip. Logolar ve menüler baştan tasarlandı.
-*   🧠 **Gelişmiş UVR5 Modeli Desteği:** Artık vokalleri ayırırken hangi UVR5 yapay zeka modelini (`UVR-MDX-NET-Voc_FT`, `KARA` vb.) kullanacağınızı arayüzden bizzat seçebilirsiniz. Sesi ayırırken gereksiz adımları atlayarak işlemleri hızlandırır.
-*   🚫 **Orijinal Sesin Sızmasına Son (Mute Backup Vocals):** Eski sürümde olan, şarkının orijinal sanatçısının sesinin yankı olarak arkadan gelmesi (Backup Vokal sızıntısı) sorunu, eklenen "Mute Backup Vocals" özelliği ile **tamamen** çözüldü!
-*   🎛️ **Agresif Yankı Temizleme (Aggressive DeReverb):** Şarkıdaki eko ve yankıları iki katmanlı olarak temizleyen özel bir filtre eklendi.
-*   📊 **Canlı Log Konsolu:** Arka planda açılan o karmaşık siyah ekran (CMD) pencerelerine son! Uygulamanın en altında, mor yazılarla işlemin hangi aşamada olduğunu anlık gösteren bir konsol var.
-*   💾 **Ayarları Kaydetme & İçe Aktarma:** "Ayarları Kaydet" butonu sayesinde; Pitch, Reverb, Gain gibi sizin için en mükemmel olan değerleri kaydedin. Uygulamayı yeniden açtığınızda her şey bıraktığınız gibi kalsın.
+*   🧠 **Gelişmiş UVR5 Modeli Desteği:** Artık vokalleri ayırırken hangi UVR5 yapay zeka modelini (`UVR-MDX-NET-Voc_FT`, `KARA` vb.) kullanacağınızı arayüzden bizzat seçebilirsiniz. 
+*   🚫 **Orijinal Sesin Sızmasına Son (Mute Backup Vocals):** Eski sürümde olan, şarkının orijinal sanatçısının sesinin yankı olarak arkadan gelmesi (Backup Vokal sızıntısı) sorunu tamamen çözüldü!
+*   🎛️ **Vocal Rescue Chain (Vokal Kurtarma Zinciri):** Yapay zeka coverlarında ritmi ve kelimeleri bozan "aşırı yankılı şarkılar" için geliştirilmiş **3 aşamalı** devrimsel bir algoritma eklendi:
+    - **Highpass Filter:** Çamurlu alt frekans yankılarını temizler.
+    - **Noise Gate:** Yankı kuyruklarını saniyesi saniyesine keserek robotikleşmeyi önler.
+    - **Compressor:** Tüm kelimelerin ses düzeyini dengeler.
+*   📊 **Canlı Log Konsolu:** Arka planda açılan karmaşık CMD pencerelerine son! Uygulamanın en altında, anlık durumu gösteren canlı bir log konsolu var.
+*   💾 **Ayarları Kaydetme & İçe Aktarma:** "Ayarları Kaydet" butonu sayesinde; Pitch, Reverb, Noise Gate eşiği gibi sizin için en mükemmel olan değerleri kaydedin.
 *   🇹🇷 / 🇬🇧 **Çift Dil Desteği:** Sağ üst köşedeki butonla anında Türkçe ve İngilizce arasında geçiş yapabilirsiniz.
-*   📁 **Özel Çıktı Klasörü:** Çıktıların nereye kaydedileceğini uygulama içinden "Klasör Seç" butonuyla artık siz belirliyorsunuz.
-*   ⚡ **Tek Tıkla Otomatik Kurulum (Setup):** İhtiyacınız olan CUDA (Nvidia GPU), Pytorch ve diğer tüm kütüphaneler Setup dosyası tarafından otomatik kurulur.
+*   📁 **Özel Çıktı Klasörü:** Çıktıların nereye kaydedileceğini uygulama içinden "Klasör Seç" butonuyla siz belirleyin.
+*   ⚡ **Tek Tıkla Otomatik Kurulum (Setup):** CUDA (Nvidia GPU), Pytorch ve diğer tüm kütüphaneler Setup dosyası tarafından otomatik kurulur.
 
 ---
 
@@ -29,8 +32,8 @@ Aşağıdan tek tıklamalı **Setup (Kurulum)** dosyasını indirerek yeni döne
 1. Aşağıdaki **Assets** bölümünden `Ripleytia AI Cover V2 Beta Setup.exe` dosyasını indirin.
 2. Programı çalıştırın ve kurmak istediğiniz dizini (örneğin Masaüstü) seçip `Install` butonuna basın.
 3. Arşivden çıkarma işlemi bittikten sonra ekranda siyah bir CMD penceresi (Kurulum Ekranı) açılacaktır. 
-   *(Bu ekranda uygulamanın çalışması için gerekli olan GPU (CUDA) kütüphaneleri, gereksinimler ve yapay zeka modelleri otomatik indirilip kurulacaktır. İnternet hızınıza bağlı olarak birkaç dakika sürebilir. Lütfen pencerenin kapanmasını bekleyin.)*
+   *(Gerekli kütüphaneler ve modeller indirilecektir, internet hızınıza göre birkaç dakika sürebilir. Kapanmasını bekleyin.)*
 4. Masaüstünüze gelen **Ripleytia AI Cover V2** logolu kısayola çift tıklayarak profesyonel uygulamanızı hemen kullanmaya başlayabilirsiniz!
 
-*(Not: Kurulumun başlayabilmesi için bilgisayarınızda [Python 3.10](https://www.python.org/downloads/) sürümünün yüklü olması ve kurarken "Add Python to PATH" seçeneğinin işaretli olması gerekmektedir.)*
+*(Not: Kurulumun başlayabilmesi için bilgisayarınızda [Python 3.10](https://www.python.org/downloads/) yüklü olması ve "Add Python to PATH" işaretli olması gerekmektedir.)*
 
