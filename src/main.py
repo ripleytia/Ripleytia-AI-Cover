@@ -137,12 +137,17 @@ def get_audio_paths(song_dir):
     for file in os.listdir(song_dir):
         if file.endswith('_Instrumental.wav'):
             instrumentals_path = os.path.join(song_dir, file)
-            orig_song_path = instrumentals_path.replace('_Instrumental', '')
+            orig_song_path = instrumentals_path.replace('_Instrumental.wav', '')
+        elif '_(Instrumental)_' in file:
+            instrumentals_path = os.path.join(song_dir, file)
+            orig_song_path = instrumentals_path.split('_(Instrumental)_')[0]
 
-        elif file.endswith('_Vocals_Main_DeReverb.wav'):
+        if file.endswith('_Vocals_Main_DeReverb.wav'):
+            main_vocals_dereverb_path = os.path.join(song_dir, file)
+        elif '_(Vocals)_' in file:
             main_vocals_dereverb_path = os.path.join(song_dir, file)
 
-        elif file.endswith('_Vocals_Backup.wav'):
+        if file.endswith('_Vocals_Backup.wav') or file.endswith('empty_backup.wav'):
             backup_vocals_path = os.path.join(song_dir, file)
 
     return orig_song_path, instrumentals_path, main_vocals_dereverb_path, backup_vocals_path
@@ -339,7 +344,7 @@ def song_cover_pipeline(song_input, voice_model, pitch_change, keep_files,
                         is_webui=0, main_gain=0, backup_gain=0, inst_gain=0, index_rate=0.5, filter_radius=3,
                         rms_mix_rate=0.25, f0_method='rmvpe', crepe_hop_length=128, protect=0.33, pitch_change_all=0,
                         reverb_rm_size=0.15, reverb_wet=0.2, reverb_dry=0.8, reverb_damping=0.7, output_format='mp3',
-                        aggressive_dereverb=False, uvr_model="Default RVC", vocal_noise_gate=False, noise_gate_threshold=-35, progress=gr.Progress()):
+                        aggressive_dereverb=False, uvr_model="Default RVC", vocal_noise_gate=False, noise_gate_threshold=-35, force_reprocess=False, progress=gr.Progress()):
     try:
         pitch_change = to_float(pitch_change, 0)
         pitch_change_all = to_float(pitch_change_all, 0)
@@ -394,7 +399,7 @@ def song_cover_pipeline(song_input, voice_model, pitch_change, keep_files,
             paths = get_audio_paths(song_dir)
 
             # if any of the audio files aren't available or keep intermediate files, rerun preprocess
-            if any(path is None for path in paths) or keep_files or uvr_model != "Default RVC" or aggressive_dereverb:
+            if force_reprocess or any(path is None for path in paths):
                 orig_song_path, vocals_path, instrumentals_path, main_vocals_path, backup_vocals_path, main_vocals_dereverb_path = preprocess_song(song_input, mdx_model_params, song_id, is_webui, input_type, aggressive_dereverb=aggressive_dereverb, uvr_model=uvr_model, progress=progress)
             else:
                 orig_song_path, instrumentals_path, main_vocals_dereverb_path, backup_vocals_path = paths
@@ -489,6 +494,9 @@ if __name__ == '__main__':
                                      reverb_dry=args.reverb_dryness, reverb_damping=args.reverb_damping,
                                      output_format=args.output_format)
     print(f'[+] Cover generated at {cover_path}')
+
+
+
 
 
 

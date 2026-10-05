@@ -75,6 +75,8 @@ translations = {
         "noise_gate_thresh": "Noise Gate Threshold (dB)",
         "agg_dereverb": "Aggressive DeReverb (Fix heavy echo)",
         "keep_files": "Keep Intermediate Files",
+        "force_reprocess": "Force Re-Extract Vocals (Ignore Cache)",
+        "no_cache": " (No Cache Found)",
         "output_format": "Output Format",
         "generate": "Generate AI Cover",
         "open_folder": "Open Output Folder",
@@ -120,6 +122,8 @@ translations = {
         "noise_gate_thresh": "Noise Gate Eşiği (Kaç dB altı sesler kesilsin?)",
         "agg_dereverb": "Agresif Yankı Temizleme (Çok yankılı sesleri onarır)",
         "keep_files": "Ara Dosyaları Sakla (Vokal/Enstrüman)",
+        "force_reprocess": "Sıfırdan Vokal Ayır (Önbelleği Yoksay)",
+        "no_cache": " (Daha Önce İşlenmemiş)",
         "output_format": "Çıktı Formatı",
         "generate": "Yapay Zeka Cover Üret",
         "open_folder": "Çıktı Klasörünü Aç",
@@ -182,6 +186,7 @@ class App(ctk.CTk):
         self.noise_gate_thresh_var = tk.IntVar(value=-35)
         self.aggressive_dereverb_var = ctk.BooleanVar(value=True)
         self.keep_files_var = ctk.BooleanVar(value=False)
+        self.force_reprocess_var = ctk.BooleanVar(value=False)
         self.output_format_var = ctk.StringVar(value="mp3")
         
         # --- Header ---
@@ -417,6 +422,10 @@ class App(ctk.CTk):
 
         self.cb_keep_files = ctk.CTkCheckBox(tab_adv, text=translations[self.lang]["keep_files"], variable=self.keep_files_var, fg_color=PRIMARY_COLOR, hover_color=HOVER_COLOR)
         self.cb_keep_files.pack(pady=10)
+
+        self.cb_force_reprocess = ctk.CTkCheckBox(tab_adv, text=translations[self.lang]["force_reprocess"], variable=self.force_reprocess_var, fg_color=PRIMARY_COLOR, hover_color=HOVER_COLOR)
+        self.cb_force_reprocess.pack(pady=10)
+        self.song_input_var.trace_add("write", self.check_file_cache)
         
         self.lbl_out_format = ctk.CTkLabel(tab_adv, text=translations[self.lang]["output_format"])
         self.lbl_out_format.pack(pady=(5,0))
@@ -488,6 +497,7 @@ class App(ctk.CTk):
         self.lbl_crepe_hop.configure(text=translations[self.lang]["crepe_hop"])
         self.cb_agg_dereverb.configure(text=translations[self.lang]["agg_dereverb"])
         self.cb_keep_files.configure(text=translations[self.lang]["keep_files"])
+        self.cb_force_reprocess.configure(text=translations[self.lang]["force_reprocess"])
         self.lbl_out_format.configure(text=translations[self.lang]["output_format"])
         self.generate_btn.configure(text=translations[self.lang]["generate"])
         self.btn_open_folder.configure(text=translations[self.lang]["open_folder"])
@@ -534,6 +544,7 @@ class App(ctk.CTk):
             "noise_gate_thresh_var": self.noise_gate_thresh_var.get(),
             "aggressive_dereverb_var": self.aggressive_dereverb_var.get(),
             "keep_files_var": self.keep_files_var.get(),
+            "force_reprocess_var": self.force_reprocess_var.get(),
             "output_format_var": self.output_format_var.get()
         }
         with open(settings_path, 'w', encoding='utf-8') as f:
@@ -568,6 +579,7 @@ class App(ctk.CTk):
                 self.noise_gate_thresh_var.set(s.get("noise_gate_thresh_var", -35))
                 self.aggressive_dereverb_var.set(s.get("aggressive_dereverb_var", True))
                 self.keep_files_var.set(s.get("keep_files_var", False))
+                self.force_reprocess_var.set(s.get("force_reprocess_var", False))
                 self.output_format_var.set(s.get("output_format_var", "mp3"))
             except Exception as e:
                 print(f"[System] Failed to load settings: {str(e)}")
@@ -607,6 +619,27 @@ class App(ctk.CTk):
             self.model_var.set(model_name)
         except Exception as e:
             print(f"[Error] Failed to upload model: {e}")
+
+    def check_file_cache(self, *args):
+        filepath = self.song_input_var.get()
+        if not filepath or not os.path.exists(filepath):
+            self.cb_force_reprocess.configure(state="normal", text=translations[self.lang]["force_reprocess"])
+            return
+
+        try:
+            from main import get_hash, get_audio_paths
+            song_id = get_hash(filepath)
+            song_dir = os.path.join(output_dir, song_id)
+            if os.path.exists(song_dir):
+                paths = get_audio_paths(song_dir)
+                if not any(path is None for path in paths):
+                    self.cb_force_reprocess.configure(state="normal", text=translations[self.lang]["force_reprocess"])
+                    return
+        except Exception:
+            pass
+
+        self.force_reprocess_var.set(True)
+        self.cb_force_reprocess.configure(state="disabled", text=translations[self.lang]["force_reprocess"] + translations[self.lang]["no_cache"])
 
     def browse_file(self):
         filepath = filedialog.askopenfilename(filetypes=[("Audio Files", "*.wav;*.mp3;*.flac;*.ogg;*.m4a")])
@@ -676,6 +709,7 @@ class App(ctk.CTk):
                     f0_method=self.f0_method_var.get(),
                     crepe_hop_length=self.crepe_hop_var.get(),
                     protect=self.protect_var.get(),
+                    force_reprocess=self.force_reprocess_var.get(),
                     pitch_change_all=self.pitch_all_var.get(),
                     reverb_rm_size=self.reverb_size_var.get(),
                     reverb_wet=self.reverb_wet_var.get(),
@@ -708,6 +742,14 @@ class App(ctk.CTk):
 if __name__ == "__main__":
     app = App()
     app.mainloop()
+
+
+
+
+
+
+
+
 
 
 
