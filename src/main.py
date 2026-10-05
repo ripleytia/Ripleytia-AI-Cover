@@ -135,18 +135,23 @@ def get_audio_paths(song_dir):
     backup_vocals_path = None
 
     for file in os.listdir(song_dir):
+        # 1) Instrumental Matching
         if file.endswith('_Instrumental.wav'):
             instrumentals_path = os.path.join(song_dir, file)
             orig_song_path = instrumentals_path.replace('_Instrumental.wav', '')
-        elif '_(Instrumental)_' in file:
+        elif '_(Instrumental)_' in file and 'melband_roformer' in file:
+            # We ONLY want the instrumental from Melband. Ignore BS-Roformer's fake instrumental.
             instrumentals_path = os.path.join(song_dir, file)
             orig_song_path = instrumentals_path.split('_(Instrumental)_')[0]
 
+        # 2) Vocal Matching
         if file.endswith('_Vocals_Main_DeReverb.wav'):
             main_vocals_dereverb_path = os.path.join(song_dir, file)
-        elif '_(Vocals)_' in file:
+        elif '_(Vocals)_' in file and 'bs_roformer' in file:
+            # We ONLY want the vocal from BS-Roformer. Ignore Melband's fake vocal.
             main_vocals_dereverb_path = os.path.join(song_dir, file)
 
+        # 3) Backup Vocals
         if file.endswith('_Vocals_Backup.wav') or file.endswith('empty_backup.wav'):
             backup_vocals_path = os.path.join(song_dir, file)
 
@@ -494,6 +499,7 @@ if __name__ == '__main__':
                                      reverb_dry=args.reverb_dryness, reverb_damping=args.reverb_damping,
                                      output_format=args.output_format)
     print(f'[+] Cover generated at {cover_path}')
+
 
 
 
