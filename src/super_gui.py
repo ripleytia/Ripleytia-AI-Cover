@@ -736,12 +736,15 @@ class App(ctk.CTk):
                 print(f"\n[Error] Pipeline failed: {str(e)}")
             finally:
                 self.generate_btn.configure(state="normal", text=translations[self.lang]["generate"])
+                self.check_file_cache()
 
         threading.Thread(target=run_pipeline, daemon=True).start()
 
 if __name__ == "__main__":
     app = App()
     app.mainloop()
+
+
 
 
 
