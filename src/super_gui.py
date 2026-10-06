@@ -79,6 +79,7 @@ translations = {
         "no_cache": " (No Cache Found)",
         "output_format": "Output Format",
         "generate": "Generate AI Cover",
+        "auto_mode": "Auto Audio Mode (AI adjusts settings)",
         "open_folder": "Open Output Folder",
         "play_last": "Play Last Output",
         "clear_log": "Clear Console",
@@ -126,6 +127,7 @@ translations = {
         "no_cache": " (Daha Önce İşlenmemiş)",
         "output_format": "Çıktı Formatı",
         "generate": "Yapay Zeka Cover Üret",
+        "auto_mode": "Otomatik Ses Modu (Şarkıyı analiz eder, ayarları otomatik yapar)",
         "open_folder": "Çıktı Klasörünü Aç",
         "play_last": "Son Çıktıyı Çal",
         "clear_log": "Konsolu Temizle",
@@ -434,6 +436,11 @@ class App(ctk.CTk):
         # Load Settings after defining widgets
         self.load_settings()
 
+        # --- Auto Mode Switch ---
+        self.auto_mode_var = ctk.BooleanVar(value=False)
+        self.sw_auto_mode = ctk.CTkSwitch(self.main_frame, text=translations[self.lang]["auto_mode"], variable=self.auto_mode_var, fg_color=PRIMARY_COLOR, progress_color=PRIMARY_COLOR, font=("Century Gothic", 14, "bold"))
+        self.sw_auto_mode.pack(pady=(15, 0))
+
         # --- Generate Button ---
         self.generate_btn = ctk.CTkButton(self.main_frame, text=translations[self.lang]["generate"], fg_color=PRIMARY_COLOR, hover_color=HOVER_COLOR, font=("Century Gothic", 18, "bold"), command=self.start_generation, height=50)
         self.generate_btn.pack(pady=20, fill="x", padx=50)
@@ -499,6 +506,7 @@ class App(ctk.CTk):
         self.cb_keep_files.configure(text=translations[self.lang]["keep_files"])
         self.cb_force_reprocess.configure(text=translations[self.lang]["force_reprocess"])
         self.lbl_out_format.configure(text=translations[self.lang]["output_format"])
+        self.sw_auto_mode.configure(text=translations[self.lang]["auto_mode"])
         self.generate_btn.configure(text=translations[self.lang]["generate"])
         self.btn_open_folder.configure(text=translations[self.lang]["open_folder"])
         self.play_btn.configure(text=translations[self.lang]["play_last"])
@@ -545,6 +553,7 @@ class App(ctk.CTk):
             "aggressive_dereverb_var": self.aggressive_dereverb_var.get(),
             "keep_files_var": self.keep_files_var.get(),
             "force_reprocess_var": self.force_reprocess_var.get(),
+            "auto_mode_var": self.auto_mode_var.get(),
             "output_format_var": self.output_format_var.get()
         }
         with open(settings_path, 'w', encoding='utf-8') as f:
@@ -580,6 +589,7 @@ class App(ctk.CTk):
                 self.aggressive_dereverb_var.set(s.get("aggressive_dereverb_var", True))
                 self.keep_files_var.set(s.get("keep_files_var", False))
                 self.force_reprocess_var.set(s.get("force_reprocess_var", False))
+                self.auto_mode_var.set(s.get("auto_mode_var", False))
                 self.output_format_var.set(s.get("output_format_var", "mp3"))
             except Exception as e:
                 print(f"[System] Failed to load settings: {str(e)}")
@@ -673,6 +683,18 @@ class App(ctk.CTk):
     def clear_logs(self):
         self.log_textbox.delete("1.0", "end")
 
+    def update_sliders_from_auto_mode(self, new_settings):
+        def update():
+            if 'rms_mix_rate' in new_settings: self.rms_mix_var.set(new_settings['rms_mix_rate'])
+            if 'protect' in new_settings: self.protect_var.set(new_settings['protect'])
+            if 'index_rate' in new_settings: self.index_rate_var.set(new_settings['index_rate'])
+            if 'filter_radius' in new_settings: self.filter_radius_var.set(new_settings['filter_radius'])
+            if 'reverb_rm_size' in new_settings: self.reverb_size_var.set(new_settings['reverb_rm_size'])
+            if 'reverb_wet' in new_settings: self.reverb_wet_var.set(new_settings['reverb_wet'])
+            if 'reverb_dry' in new_settings: self.reverb_dry_var.set(new_settings['reverb_dry'])
+            print("[UI] Ayarlar Otomatik Ses Modu tarafından tespit edilip uygulandı!")
+        self.after(0, update)
+
     def start_generation(self):
         song = self.song_input_var.get()
         model = self.model_var.get()
@@ -710,6 +732,8 @@ class App(ctk.CTk):
                     crepe_hop_length=self.crepe_hop_var.get(),
                     protect=self.protect_var.get(),
                     force_reprocess=self.force_reprocess_var.get(),
+                    auto_mode=self.auto_mode_var.get(),
+                    auto_mode_callback=self.update_sliders_from_auto_mode,
                     pitch_change_all=self.pitch_all_var.get(),
                     reverb_rm_size=self.reverb_size_var.get(),
                     reverb_wet=self.reverb_wet_var.get(),
@@ -743,6 +767,14 @@ class App(ctk.CTk):
 if __name__ == "__main__":
     app = App()
     app.mainloop()
+
+
+
+
+
+
+
+
 
 
 

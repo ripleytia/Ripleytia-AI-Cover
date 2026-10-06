@@ -349,7 +349,7 @@ def song_cover_pipeline(song_input, voice_model, pitch_change, keep_files,
                         is_webui=0, main_gain=0, backup_gain=0, inst_gain=0, index_rate=0.5, filter_radius=3,
                         rms_mix_rate=0.25, f0_method='rmvpe', crepe_hop_length=128, protect=0.33, pitch_change_all=0,
                         reverb_rm_size=0.15, reverb_wet=0.2, reverb_dry=0.8, reverb_damping=0.7, output_format='mp3',
-                        aggressive_dereverb=False, uvr_model="Default RVC", vocal_noise_gate=False, noise_gate_threshold=-35, force_reprocess=False, progress=gr.Progress()):
+                        aggressive_dereverb=False, uvr_model="Default RVC", vocal_noise_gate=False, noise_gate_threshold=-35, force_reprocess=False, auto_mode=False, auto_mode_callback=None, progress=gr.Progress()):
     try:
         pitch_change = to_float(pitch_change, 0)
         pitch_change_all = to_float(pitch_change_all, 0)
@@ -408,6 +408,27 @@ def song_cover_pipeline(song_input, voice_model, pitch_change, keep_files,
                 orig_song_path, vocals_path, instrumentals_path, main_vocals_path, backup_vocals_path, main_vocals_dereverb_path = preprocess_song(song_input, mdx_model_params, song_id, is_webui, input_type, aggressive_dereverb=aggressive_dereverb, uvr_model=uvr_model, progress=progress)
             else:
                 orig_song_path, instrumentals_path, main_vocals_dereverb_path, backup_vocals_path = paths
+
+        if auto_mode:
+            display_progress('[~] Analyzing audio for Auto Mode...', 0.45, is_webui, progress)
+            try:
+                from audio_analyzer import AudioAnalyzer
+                new_settings = AudioAnalyzer.analyze_audio(orig_song_path, main_vocals_dereverb_path, instrumentals_path)
+                
+                # Apply new settings
+                if 'rms_mix_rate' in new_settings: rms_mix_rate = new_settings['rms_mix_rate']
+                if 'protect' in new_settings: protect = new_settings['protect']
+                if 'index_rate' in new_settings: index_rate = new_settings['index_rate']
+                if 'filter_radius' in new_settings: filter_radius = new_settings['filter_radius']
+                if 'reverb_rm_size' in new_settings: reverb_rm_size = new_settings['reverb_rm_size']
+                if 'reverb_wet' in new_settings: reverb_wet = new_settings['reverb_wet']
+                if 'reverb_dry' in new_settings: reverb_dry = new_settings['reverb_dry']
+                
+                # Call callback to update GUI
+                if auto_mode_callback:
+                    auto_mode_callback(new_settings)
+            except Exception as e:
+                print(f"[Error] Auto Mode analysis failed: {e}")
 
         if vocal_noise_gate:
             display_progress(f'[~] Applying Vocal Rescue Chain (Highpass + Noise Gate {noise_gate_threshold}dB + Compressor) to clean vocals...', 0.4, is_webui, progress)
@@ -499,6 +520,8 @@ if __name__ == '__main__':
                                      reverb_dry=args.reverb_dryness, reverb_damping=args.reverb_damping,
                                      output_format=args.output_format)
     print(f'[+] Cover generated at {cover_path}')
+
+
 
 
 
