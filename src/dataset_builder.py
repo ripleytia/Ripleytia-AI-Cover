@@ -106,12 +106,37 @@ def _ensure_mdxc_patched():
     return Separator
 
 
+def get_modern_ytdlp_cmd() -> list:
+    """
+    Returns command prefix for a modern yt-dlp (Python 3.12/3.14, 2026+) so YouTube downloads
+    never fail due to AICoverGen's legacy Python 3.9 environment, without touching AICoverGen's venv.
+    """
+    candidates = [
+        r"C:\Users\Ripleytia\AppData\Local\Programs\Python\Python314\Scripts\yt-dlp.exe",
+        os.path.join(APPLIO_DIR, "env", "Scripts", "yt-dlp.exe"),
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return [c]
+
+    applio_py = os.path.join(APPLIO_DIR, "env", "python.exe")
+    if os.path.exists(applio_py):
+        return [applio_py, "-m", "yt_dlp"]
+
+    sys_ytdlp = shutil.which("yt-dlp")
+    if sys_ytdlp and "AICoverGen\\venv" not in sys_ytdlp:
+        return [sys_ytdlp]
+
+    return [sys.executable, "-m", "yt_dlp"]
+
+
 def download_youtube_audios(urls: list, raw_dir: str, progress_cb=None) -> list:
     """
-    Downloads one or multiple YouTube URLs into raw_dir as WAV files.
+    Downloads one or multiple YouTube URLs into raw_dir as WAV files using modern yt-dlp (2026+).
     """
     os.makedirs(raw_dir, exist_ok=True)
     downloaded_files = []
+    ytdlp_base_cmd = get_modern_ytdlp_cmd()
 
     for idx, url in enumerate(urls, 1):
         url = url.strip()
@@ -121,36 +146,41 @@ def download_youtube_audios(urls: list, raw_dir: str, progress_cb=None) -> list:
             progress_cb(f"[YouTube {idx}/{len(urls)}] İndiriliyor: {url}")
 
         out_template = os.path.join(raw_dir, f"yt_{idx:02d}_%(id)s.%(ext)s")
-        ydl_opts = {
-            "format": "bestaudio/best",
-            "outtmpl": out_template,
-            "nocheckcertificate": True,
-            "ignoreerrors": False,
-            "no_warnings": True,
-            "quiet": True,
-            "noplaylist": True,
-            "postprocessors": [
-                {
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": "wav",
-                }
-            ],
-        }
+        cmd = ytdlp_base_cmd + [
+            "--no-playlist",
+            "--no-check-certificate",
+            "--no-warnings",
+            "-f",
+            "bestaudio/best",
+            "-x",
+            "--audio-format",
+            "wav",
+            "-o",
+            out_template,
+            url,
+        ]
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                vid_id = info.get("id", f"v{idx}")
-                wav_path = os.path.join(raw_dir, f"yt_{idx:02d}_{vid_id}.wav")
-                if os.path.exists(wav_path):
-                    downloaded_files.append(wav_path)
-                    if progress_cb:
-                        progress_cb(f"[YouTube {idx}/{len(urls)}] Başarıyla indirildi: {info.get('title', vid_id)}")
-                else:
-                    # Fallback search in raw_dir for matching prefix
-                    for f in os.listdir(raw_dir):
-                        if f.startswith(f"yt_{idx:02d}_") and f.endswith(".wav"):
-                            downloaded_files.append(os.path.join(raw_dir, f))
-                            break
+            res = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            found_wav = None
+            for f in sorted(os.listdir(raw_dir)):
+                if f.startswith(f"yt_{idx:02d}_") and f.lower().endswith(".wav"):
+                    found_wav = os.path.join(raw_dir, f)
+                    break
+
+            if found_wav and os.path.exists(found_wav):
+                downloaded_files.append(found_wav)
+                if progress_cb:
+                    progress_cb(f"[YouTube {idx}/{len(urls)}] Başarıyla indirildi: {os.path.basename(found_wav)}")
+            else:
+                err_tail = (res.stdout or "").strip().splitlines()[-3:]
+                raise RuntimeError(" | ".join(err_tail) if err_tail else f"Çıkış kodu: {res.returncode}")
         except Exception as e:
             if progress_cb:
                 progress_cb(f"[Uyarı] YouTube linki indirilemedi ({url}): {e}")

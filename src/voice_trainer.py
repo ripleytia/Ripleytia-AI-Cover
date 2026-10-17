@@ -18,7 +18,9 @@ RVC_MODELS_DIR = os.path.join(BASE_DIR, "rvc_models")
 DATASETS_ROOT = os.path.join(BASE_DIR, "datasets")
 
 APPLIO_DIR = r"F:\Yapay_Zeka_Uygulamalari\Applio"
-APPLIO_PYTHON = os.path.join(APPLIO_DIR, "env", "Scripts", "python.exe")
+_applio_py_root = os.path.join(APPLIO_DIR, "env", "python.exe")
+_applio_py_scripts = os.path.join(APPLIO_DIR, "env", "Scripts", "python.exe")
+APPLIO_PYTHON = _applio_py_root if os.path.exists(_applio_py_root) else _applio_py_scripts
 APPLIO_LOGS_DIR = os.path.join(APPLIO_DIR, "logs")
 APPLIO_CUSTOM_PRETRAIN_DIR = os.path.join(APPLIO_DIR, "rvc", "models", "pretraineds", "custom")
 APPLIO_PRETRAINS_JSON = os.path.join(APPLIO_CUSTOM_PRETRAIN_DIR, "pretrains.json")

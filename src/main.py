@@ -87,21 +87,33 @@ def get_youtube_video_id(url, ignore_playlist=True):
 
 
 def yt_download(link):
-    ydl_opts = {
-        'format': 'bestaudio',
-        'outtmpl': '%(title)s',
-        'nocheckcertificate': True,
-        'ignoreerrors': True,
-        'no_warnings': True,
-        'quiet': True,
-        'extractaudio': True,
-        'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}],
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        result = ydl.extract_info(link, download=True)
-        download_path = ydl.prepare_filename(result, outtmpl='%(title)s.mp3')
+    from dataset_builder import get_modern_ytdlp_cmd
+    vid_id = get_youtube_video_id(link) or "yt_song"
+    out_dir = os.path.join(output_dir, vid_id)
+    os.makedirs(out_dir, exist_ok=True)
+    out_template = os.path.join(out_dir, f"{vid_id}_orig.%(ext)s")
+    target_mp3 = os.path.join(out_dir, f"{vid_id}_orig.mp3")
 
-    return download_path
+    cmd = get_modern_ytdlp_cmd() + [
+        "--no-playlist",
+        "--no-check-certificate",
+        "--no-warnings",
+        "-f",
+        "bestaudio/best",
+        "-x",
+        "--audio-format",
+        "mp3",
+        "-o",
+        out_template,
+        link,
+    ]
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
+    if os.path.exists(target_mp3):
+        return target_mp3
+    for f in os.listdir(out_dir):
+        if f.startswith(f"{vid_id}_orig.") and f.lower().endswith((".mp3", ".wav", ".m4a", ".webm")):
+            return os.path.join(out_dir, f)
+    raise RuntimeError(f"YouTube indirme hatası: {(res.stdout or '').strip()}")
 
 
 def raise_exception(error_msg, is_webui):
