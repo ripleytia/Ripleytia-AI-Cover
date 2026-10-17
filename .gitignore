@@ -1,6 +1,36 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Large Model Weights & Datasets
+mdxnet_models/*.onnx
+mdxnet_models/*.ckpt
+rvc_models/*/*.pth
+rvc_models/*/*.index
+rvc_models/*/*.npy
+rvc_models/*/*.json
+rvc_models/hubert_base.pt
+rvc_models/rmvpe.pt
+datasets/
+song_output/*
+
+# Keep directory placeholders
+!song_output/OUTPUT.txt
+!rvc_models/MODELS.txt
+!rvc_models/public_models.json
+!mdxnet_models/model_data.json
+
+# Build / Packaging / Local Config
 dist/
 build/
 *.spec
 __pycache__/
+*.py[cod]
 *.zip
+*.wav
+*.mp3
 publish_release.py
+settings.json

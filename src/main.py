@@ -128,7 +128,25 @@ def get_rvc_model(voice_model, is_webui):
     return os.path.join(model_dir, rvc_model_filename), os.path.join(model_dir, rvc_index_filename) if rvc_index_filename else ''
 
 
-def get_audio_paths(song_dir):
+def get_audio_paths(song_dir, uvr_model=None):
+    manifest_path = os.path.join(song_dir, 'cache_manifest.json')
+    if os.path.exists(manifest_path):
+        try:
+            with open(manifest_path, 'r', encoding='utf-8') as f:
+                manifest = json.load(f)
+            if uvr_model is not None and manifest.get('uvr_model') and manifest.get('uvr_model') != uvr_model:
+                return None, None, None, None
+            paths = (
+                manifest.get('orig_song_path'),
+                manifest.get('instrumentals_path'),
+                manifest.get('main_vocals_dereverb_path'),
+                manifest.get('backup_vocals_path'),
+            )
+            if all(p and os.path.exists(p) for p in paths):
+                return paths
+        except Exception:
+            pass
+
     orig_song_path = None
     instrumentals_path = None
     main_vocals_dereverb_path = None
@@ -139,16 +157,14 @@ def get_audio_paths(song_dir):
         if file.endswith('_Instrumental.wav'):
             instrumentals_path = os.path.join(song_dir, file)
             orig_song_path = instrumentals_path.replace('_Instrumental.wav', '')
-        elif '_(Instrumental)_' in file and 'melband_roformer' in file:
-            # We ONLY want the instrumental from Melband. Ignore BS-Roformer's fake instrumental.
+        elif '_(Instrumental)_' in file and ('melband_roformer' in file or 'mel_band_roformer_instrumental' in file):
             instrumentals_path = os.path.join(song_dir, file)
             orig_song_path = instrumentals_path.split('_(Instrumental)_')[0]
 
         # 2) Vocal Matching
-        if file.endswith('_Vocals_Main_DeReverb.wav'):
+        if file.endswith('_Vocals_Main_DeReverb.wav') or file.endswith('_DeReverb_Aggressive.wav') or file.endswith('_DeReverb.wav'):
             main_vocals_dereverb_path = os.path.join(song_dir, file)
-        elif '_(Vocals)_' in file and 'bs_roformer' in file:
-            # We ONLY want the vocal from BS-Roformer. Ignore Melband's fake vocal.
+        elif '_(Vocals)_' in file and ('bs_roformer' in file or 'dereverb_mel_band_roformer' in file or 'mel_band_roformer_vocals_becruily' in file):
             main_vocals_dereverb_path = os.path.join(song_dir, file)
 
         # 3) Backup Vocals
@@ -214,37 +230,76 @@ def preprocess_song(song_input, mdx_model_params, song_id, is_webui, input_type,
     song_output_dir = os.path.join(output_dir, song_id)
     orig_song_path = convert_to_stereo(orig_song_path)
 
-    if uvr_model != "Default RVC":
-        if uvr_model == "UVR5 Special":
-            display_progress('[~] Separating Vocals using BS-Roformer-Viperx-1297...', 0.1, is_webui, progress)
+    uvr5_models_dir = r"C:\Users\Ripleytia\AppData\Local\Programs\Ultimate Vocal Remover\models\MDX_Net_Models"
+
+    def _ensure_mdxc_patched():
+        try:
+            from audio_separator.separator import Separator
             try:
-                from audio_separator.separator import Separator
-                import glob
-                try:
-                    from audio_separator.separator.architectures.mdxc_separator import MDXCSeparator
-                    if not hasattr(MDXCSeparator, '_patched_by_ripleytia'):
-                        original_demix = MDXCSeparator.demix
-                        def patched_demix(self, mix):
-                            res = original_demix(self, mix)
-                            if isinstance(res, dict):
-                                return res
-                            return {self.primary_stem_name: res, self.secondary_stem_name: res}
-                        MDXCSeparator.demix = patched_demix
-                        MDXCSeparator._patched_by_ripleytia = True
-                except Exception as e:
-                    print(f'Patch warning: {e}')
+                from audio_separator.separator.architectures.mdxc_separator import MDXCSeparator
+                if not hasattr(MDXCSeparator, '_patched_by_ripleytia'):
+                    original_demix = MDXCSeparator.demix
+                    def patched_demix(self, mix):
+                        res = original_demix(self, mix)
+                        if isinstance(res, dict):
+                            return res
+                        return {self.primary_stem_name: res, self.secondary_stem_name: res}
+                    MDXCSeparator.demix = patched_demix
+                    MDXCSeparator._patched_by_ripleytia = True
+            except Exception as e:
+                print(f'Patch warning: {e}')
+            return Separator
+        except ImportError:
+            raise_exception("Gerekli kutuphaneler eksik. Lutfen 'pip install audio-separator' komutunu calistirin.", is_webui)
 
+    if uvr_model == "UVR5 Special 2":
+        Separator = _ensure_mdxc_patched()
 
-            except ImportError:
-                raise_exception("Gerekli kutuphaneler eksik. Lutfen 'pip install audio-separator' komutunu calistirin.", is_webui)
+        # Stage 1: SOTA Vocal Isolation (Becruily Mel-Band Roformer Vocals)
+        display_progress('[~] [UVR5 Special 2 - 1/4] Separating Vocals using MelBand-Roformer-Vocals-Becruily...', 0.08, is_webui, progress)
+        sep1 = Separator(log_level=30, output_dir=song_output_dir, model_file_dir=uvr5_models_dir, output_single_stem="Vocals", mdxc_params={"segment_size": 256, "batch_size": 1, "overlap": 4, "override_model_segment_size": False})
+        sep1.load_model(model_filename='mel_band_roformer_vocals_becruily.ckpt')
+        res1 = sep1.separate(orig_song_path)
+        vocals_path = [os.path.join(song_output_dir, f) for f in res1 if 'Vocals' in f][0]
 
-            sep1 = Separator(log_level=30, output_dir=song_output_dir, model_file_dir=r"C:\Users\Ripleytia\AppData\Local\Programs\Ultimate Vocal Remover\models\MDX_Net_Models", mdxc_params={"segment_size": 256, "batch_size": 1, "overlap": 4, "override_model_segment_size": False})
+        # Stage 2: SOTA Instrumental Isolation (Becruily Mel-Band Roformer Instrumental)
+        display_progress('[~] [UVR5 Special 2 - 2/4] Separating Instrumentals using MelBand-Roformer-Inst-Becruily...', 0.18, is_webui, progress)
+        sep2 = Separator(log_level=30, output_dir=song_output_dir, model_file_dir=uvr5_models_dir, output_single_stem="Instrumental", mdxc_params={"segment_size": 256, "batch_size": 1, "overlap": 4, "override_model_segment_size": False})
+        sep2.load_model(model_filename='mel_band_roformer_instrumental_becruily.ckpt')
+        res2 = sep2.separate(orig_song_path)
+        instrumentals_path = [os.path.join(song_output_dir, f) for f in res2 if 'Instrumental' in f][0]
+
+        # Stage 3: SOTA Karaoke / Lead vs Backing Vocal Separation (Aufr33 & Viperx Mel-Band Roformer Karaoke)
+        display_progress('[~] [UVR5 Special 2 - 3/4] Separating Lead & Backing Vocals using Mel-Roformer-Karaoke-Aufr33-Viperx...', 0.28, is_webui, progress)
+        sep3 = Separator(log_level=30, output_dir=song_output_dir, model_file_dir=uvr5_models_dir, mdxc_params={"segment_size": 256, "batch_size": 1, "overlap": 4, "override_model_segment_size": False})
+        sep3.load_model(model_filename='mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt')
+        res3 = sep3.separate(vocals_path)
+        main_vocals_path = [os.path.join(song_output_dir, f) for f in res3 if '_(Vocals)_mel_band_roformer_karaoke' in f][0]
+        raw_backup_path = [os.path.join(song_output_dir, f) for f in res3 if '_(Instrumental)_mel_band_roformer_karaoke' in f][0]
+        backup_vocals_path = os.path.join(song_output_dir, f"{song_id}_Vocals_Backup.wav")
+        if os.path.abspath(raw_backup_path) != os.path.abspath(backup_vocals_path):
+            if os.path.exists(backup_vocals_path):
+                os.remove(backup_vocals_path)
+            os.replace(raw_backup_path, backup_vocals_path)
+
+        # Stage 4: SOTA Roformer De-Reverb (Anvuew Mel-Band Roformer De-Reverb SDR 19.17)
+        display_progress('[~] [UVR5 Special 2 - 4/4] Applying Studio De-Reverb using MelBand-Roformer-DeReverb-Anvuew (SDR 19.17)...', 0.36, is_webui, progress)
+        sep4 = Separator(log_level=30, output_dir=song_output_dir, model_file_dir=uvr5_models_dir, output_single_stem="Vocals", mdxc_params={"segment_size": 256, "batch_size": 1, "overlap": 2, "override_model_segment_size": False})
+        sep4.load_model(model_filename='dereverb_mel_band_roformer_anvuew_sdr_19.1729.ckpt')
+        res4 = sep4.separate(main_vocals_path)
+        main_vocals_dereverb_path = [os.path.join(song_output_dir, f) for f in res4 if 'dereverb_mel_band_roformer' in f][0]
+
+    elif uvr_model != "Default RVC":
+        if uvr_model == "UVR5 Special":
+            Separator = _ensure_mdxc_patched()
+            display_progress('[~] Separating Vocals using BS-Roformer-Viperx-1297...', 0.1, is_webui, progress)
+            sep1 = Separator(log_level=30, output_dir=song_output_dir, model_file_dir=uvr5_models_dir, mdxc_params={"segment_size": 256, "batch_size": 1, "overlap": 4, "override_model_segment_size": False})
             sep1.load_model(model_filename='model_bs_roformer_ep_317_sdr_12.9755.ckpt')
             res1 = sep1.separate(orig_song_path)
             vocals_path = [os.path.join(song_output_dir, f) for f in res1 if 'Vocals' in f][0]
 
             display_progress('[~] Separating Instrumentals using MB-Roformer-Inst-v2...', 0.2, is_webui, progress)
-            sep2 = Separator(log_level=30, output_dir=song_output_dir, model_file_dir=r"C:\Users\Ripleytia\AppData\Local\Programs\Ultimate Vocal Remover\models\MDX_Net_Models", mdxc_params={"segment_size": 256, "batch_size": 1, "overlap": 4, "override_model_segment_size": False})
+            sep2 = Separator(log_level=30, output_dir=song_output_dir, model_file_dir=uvr5_models_dir, mdxc_params={"segment_size": 256, "batch_size": 1, "overlap": 4, "override_model_segment_size": False})
             sep2.load_model(model_filename='melband_roformer_inst_v2.ckpt')
             res2 = sep2.separate(orig_song_path)
             instrumentals_path = [os.path.join(song_output_dir, f) for f in res2 if 'Instrumental' in f][0]
@@ -282,6 +337,20 @@ def preprocess_song(song_input, mdx_model_params, song_id, is_webui, input_type,
         if aggressive_dereverb:
             display_progress('[~] Applying AGGRESSIVE DeReverb to Vocals (Pass 2)...', 0.35, is_webui, progress)
             _, main_vocals_dereverb_path = run_mdx(mdx_model_params, song_output_dir, os.path.join(mdxnet_models_dir, 'Reverb_HQ_By_FoxJoy.onnx'), main_vocals_dereverb_path, invert_suffix='DeReverb_Aggressive', exclude_main=True, denoise=True)
+
+    try:
+        manifest_path = os.path.join(song_output_dir, 'cache_manifest.json')
+        with open(manifest_path, 'w', encoding='utf-8') as f:
+            json.dump({
+                'uvr_model': uvr_model,
+                'aggressive_dereverb': aggressive_dereverb,
+                'orig_song_path': orig_song_path,
+                'instrumentals_path': instrumentals_path,
+                'main_vocals_dereverb_path': main_vocals_dereverb_path,
+                'backup_vocals_path': backup_vocals_path,
+            }, f, indent=2)
+    except Exception:
+        pass
 
     return orig_song_path, vocals_path, instrumentals_path, main_vocals_path, backup_vocals_path, main_vocals_dereverb_path
 
@@ -401,7 +470,7 @@ def song_cover_pipeline(song_input, voice_model, pitch_change, keep_files,
 
         else:
             vocals_path, main_vocals_path = None, None
-            paths = get_audio_paths(song_dir)
+            paths = get_audio_paths(song_dir, uvr_model=uvr_model)
 
             # if any of the audio files aren't available or keep intermediate files, rerun preprocess
             if force_reprocess or any(path is None for path in paths):
@@ -448,10 +517,10 @@ def song_cover_pipeline(song_input, voice_model, pitch_change, keep_files,
 
         safe_song_name = safe_filename(os.path.splitext(os.path.basename(orig_song_path))[0])
         pitch_change = pitch_change * 12 + pitch_change_all
-        ai_vocals_path = os.path.join(song_dir, f'{safe_song_name}_{voice_model}_p{pitch_change}_i{index_rate}_fr{filter_radius}_rms{rms_mix_rate}_pro{protect}_{f0_method}{"" if f0_method != "mangio-crepe" else f"_{crepe_hop_length}"}.wav')
+        ai_vocals_path = os.path.join(song_dir, f'{safe_song_name}_{voice_model}_{safe_filename(uvr_model).replace(" ", "")}_p{pitch_change}_i{index_rate}_fr{filter_radius}_rms{rms_mix_rate}_pro{protect}_{f0_method}{"" if f0_method != "mangio-crepe" else f"_{crepe_hop_length}"}.wav')
         ai_cover_path = os.path.join(song_dir, f'{safe_song_name} ({voice_model} Ver).{output_format}')
 
-        if not os.path.exists(ai_vocals_path):
+        if force_reprocess or (vocals_path is not None) or not os.path.exists(ai_vocals_path):
             display_progress('[~] Converting voice using RVC...', 0.5, is_webui, progress)
             voice_change(voice_model, main_vocals_dereverb_path, ai_vocals_path, pitch_change, f0_method, index_rate, filter_radius, rms_mix_rate, protect, crepe_hop_length, is_webui)
 
