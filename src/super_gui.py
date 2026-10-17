@@ -1202,19 +1202,57 @@ class App(ctk.CTk):
         easy_grid = ctk.CTkFrame(tab_easy, fg_color="transparent")
         easy_grid.pack(fill="x", padx=15, pady=10)
 
-        # Total Epoch slider + direct entry
+        # Total Epoch slider + direct entry (safe against empty text while typing)
+        self.tr_total_epoch_str = ctk.StringVar(value=str(self.tr_total_epoch_var.get()))
+        self.tr_save_every_str = ctk.StringVar(value=str(self.tr_save_every_var.get()))
+
+        def _on_epoch_var_change(*args):
+            try:
+                val = str(self.tr_total_epoch_var.get())
+                if self.tr_total_epoch_str.get() != val:
+                    self.tr_total_epoch_str.set(val)
+            except Exception:
+                pass
+
+        def _on_epoch_str_change(*args):
+            txt = self.tr_total_epoch_str.get().strip()
+            if txt.isdigit():
+                val = max(1, min(10000, int(txt)))
+                if self.tr_total_epoch_var.get() != val:
+                    self.tr_total_epoch_var.set(val)
+
+        def _on_save_var_change(*args):
+            try:
+                val = str(self.tr_save_every_var.get())
+                if self.tr_save_every_str.get() != val:
+                    self.tr_save_every_str.set(val)
+            except Exception:
+                pass
+
+        def _on_save_str_change(*args):
+            txt = self.tr_save_every_str.get().strip()
+            if txt.isdigit():
+                val = max(1, min(1000, int(txt)))
+                if self.tr_save_every_var.get() != val:
+                    self.tr_save_every_var.set(val)
+
+        self.tr_total_epoch_var.trace_add("write", _on_epoch_var_change)
+        self.tr_total_epoch_str.trace_add("write", _on_epoch_str_change)
+        self.tr_save_every_var.trace_add("write", _on_save_var_change)
+        self.tr_save_every_str.trace_add("write", _on_save_str_change)
+
         ctk.CTkLabel(easy_grid, text="Toplam Eğitim Sayısı (Total Epoch):", font=("Arial", 13, "bold")).grid(row=0, column=0, sticky="w", padx=5, pady=8)
         ctk.CTkSlider(
             easy_grid, from_=10, to=1000, number_of_steps=99, variable=self.tr_total_epoch_var, width=280, button_color=PRIMARY_COLOR, button_hover_color=HOVER_COLOR
         ).grid(row=0, column=1, padx=10, pady=8)
-        ctk.CTkEntry(easy_grid, textvariable=self.tr_total_epoch_var, width=70).grid(row=0, column=2, padx=5, pady=8)
+        ctk.CTkEntry(easy_grid, textvariable=self.tr_total_epoch_str, width=70).grid(row=0, column=2, padx=5, pady=8)
 
         # Save Every Epoch slider + entry
         ctk.CTkLabel(easy_grid, text="Kaç Epoch'ta Bir Kaydedilsin:", font=("Arial", 13, "bold")).grid(row=1, column=0, sticky="w", padx=5, pady=8)
         ctk.CTkSlider(
             easy_grid, from_=5, to=100, number_of_steps=19, variable=self.tr_save_every_var, width=280, button_color=PRIMARY_COLOR, button_hover_color=HOVER_COLOR
         ).grid(row=1, column=1, padx=10, pady=8)
-        ctk.CTkEntry(easy_grid, textvariable=self.tr_save_every_var, width=70).grid(row=1, column=2, padx=5, pady=8)
+        ctk.CTkEntry(easy_grid, textvariable=self.tr_save_every_str, width=70).grid(row=1, column=2, padx=5, pady=8)
 
         # Batch Size slider
         ctk.CTkLabel(easy_grid, text="Batch Size (RTX 4060 için 6 önerilir):", font=("Arial", 13, "bold")).grid(row=2, column=0, sticky="w", padx=5, pady=8)
@@ -1307,10 +1345,27 @@ class App(ctk.CTk):
             selected_hover_color=HOVER_COLOR,
         ).grid(row=2, column=1, sticky="w", padx=8, pady=6)
 
-        ctk.CTkLabel(pro_grid, text="Sessizlik Öğretimi (Mute Dosyası):", font=("Arial", 13, "bold")).grid(row=2, column=2, sticky="w", padx=12, pady=6)
+        self.lbl_tr_mutes_title = ctk.CTkLabel(
+            pro_grid, text=f"Sessizlik Öğretimi (Mute Dosyası): {self.tr_include_mutes_var.get()}", font=("Arial", 13, "bold")
+        )
+        self.lbl_tr_mutes_title.grid(row=2, column=2, sticky="w", padx=12, pady=6)
+
+        mute_slider_frame = ctk.CTkFrame(pro_grid, fg_color="transparent")
+        mute_slider_frame.grid(row=2, column=3, sticky="w", padx=5, pady=6)
         ctk.CTkSlider(
-            pro_grid, from_=0, to=10, number_of_steps=10, variable=self.tr_include_mutes_var, width=150, button_color=PRIMARY_COLOR, button_hover_color=HOVER_COLOR
-        ).grid(row=2, column=3, sticky="w", padx=5, pady=6)
+            mute_slider_frame, from_=0, to=10, number_of_steps=10, variable=self.tr_include_mutes_var, width=135, button_color=PRIMARY_COLOR, button_hover_color=HOVER_COLOR
+        ).pack(side="left")
+        self.lbl_tr_mutes_val = ctk.CTkLabel(
+            mute_slider_frame, text=str(self.tr_include_mutes_var.get()), font=("Arial", 14, "bold"), text_color="#A982FA", width=28
+        )
+        self.lbl_tr_mutes_val.pack(side="left", padx=(6, 0))
+
+        def _update_mutes_lbl(*args):
+            v = self.tr_include_mutes_var.get()
+            self.lbl_tr_mutes_title.configure(text=f"Sessizlik Öğretimi (Mute Dosyası): {v}")
+            self.lbl_tr_mutes_val.configure(text=str(v))
+
+        self.tr_include_mutes_var.trace_add("write", _update_mutes_lbl)
 
         pro_chks = ctk.CTkFrame(tab_pro, fg_color="transparent")
         pro_chks.pack(fill="x", padx=15, pady=6)
