@@ -301,6 +301,18 @@ def preprocess_song(song_input, mdx_model_params, song_id, is_webui, input_type,
         res4 = sep4.separate(main_vocals_path)
         main_vocals_dereverb_path = [os.path.join(song_output_dir, f) for f in res4 if 'dereverb_mel_band_roformer' in f][0]
 
+        # Stage 5: Intelligent Vocal Rescue Shield (Restores swallowed words, dropouts, and lost vocal body)
+        display_progress('[~] [UVR5 Special 2 - Kalkan] Akilli Vokal Kurtarma Kalkani uygulaniyor...', 0.38, is_webui, progress)
+        try:
+            from vocal_shield import apply_vocal_rescue_shield
+            main_vocals_dereverb_path = apply_vocal_rescue_shield(
+                ref_path=vocals_path,
+                proc_path=main_vocals_dereverb_path,
+                progress_cb=lambda msg: display_progress(f'[~] {msg}', 0.38, is_webui, progress)
+            )
+        except Exception as shield_err:
+            print(f'[UVR5 Shield Hatasi] {shield_err}')
+
     elif uvr_model != "Default RVC":
         if uvr_model == "UVR5 Special":
             Separator = _ensure_mdxc_patched()

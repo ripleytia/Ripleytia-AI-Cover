@@ -34,3 +34,5 @@ __pycache__/
 *.mp3
 publish_release.py
 settings.json
+
+release_dist/

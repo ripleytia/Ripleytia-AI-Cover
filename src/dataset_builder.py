@@ -246,6 +246,7 @@ def isolate_clean_vocals(
             voc_files = [os.path.join(work_dir, f) for f in res1 if "Vocals" in f]
             if voc_files:
                 current_audio = voc_files[0]
+            stage1_master_vocal = current_audio
             del sep1
             gc.collect()
         else:
@@ -303,6 +304,21 @@ def isolate_clean_vocals(
             current_audio = dereverb_files[0]
         del sep3
         gc.collect()
+
+    # Step 4: Intelligent Vocal Rescue Shield
+    if clean_mode == "UVR5 Special 2 (Ultra Kalite)" and 'stage1_master_vocal' in locals() and stage1_master_vocal and os.path.exists(stage1_master_vocal) and current_audio != stage1_master_vocal:
+        if progress_cb:
+            progress_cb("   -> [Kalkan] Akıllı Vokal Kurtarma Kalkanı uygulanıyor (yutulan heceler ve dinamikler taranıyor)...")
+        try:
+            from vocal_shield import apply_vocal_rescue_shield
+            current_audio = apply_vocal_rescue_shield(
+                ref_path=stage1_master_vocal,
+                proc_path=current_audio,
+                progress_cb=progress_cb
+            )
+        except Exception as shield_err:
+            if progress_cb:
+                progress_cb(f"   [Kalkan Uyarısı] {shield_err}")
 
     return current_audio
 
