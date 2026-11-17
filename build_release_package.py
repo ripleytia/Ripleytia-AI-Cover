@@ -4,7 +4,7 @@ import shutil
 import zipfile
 import subprocess
 
-BASE_DIR = r"C:\Users\Ripleytia\.gemini\antigravity\scratch\AICoverGen"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DIST_DIR = os.path.join(BASE_DIR, "release_dist")
 CORE_ZIP = os.path.join(BASE_DIR, "core.zip")
 

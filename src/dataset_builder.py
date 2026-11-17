@@ -17,8 +17,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATASETS_ROOT = os.path.join(BASE_DIR, "datasets")
 APPLIO_DIR = r"F:\Yapay_Zeka_Uygulamalari\Applio"
 APPLIO_DATASETS_DIR = os.path.join(APPLIO_DIR, "assets", "datasets")
-UVR5_MODELS_DIR = r"C:\Users\Ripleytia\AppData\Local\Programs\Ultimate Vocal Remover\models\MDX_Net_Models"
 MDXNET_MODELS_DIR = os.path.join(BASE_DIR, "mdxnet_models")
+UVR5_MODELS_DIR = MDXNET_MODELS_DIR
 
 os.makedirs(DATASETS_ROOT, exist_ok=True)
 
@@ -88,6 +88,8 @@ def calculate_recommended_epochs(duration_seconds: float, preset: str = "Dengeli
 
 def _ensure_mdxc_patched():
     from audio_separator.separator import Separator
+    from uvr_model_support import patch_model_catalog
+    patch_model_catalog(Separator)
     try:
         from audio_separator.separator.architectures.mdxc_separator import MDXCSeparator
         if not hasattr(MDXCSeparator, "_patched_by_ripleytia"):

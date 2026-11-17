@@ -8,15 +8,12 @@ def apply_vocal_rescue_shield(
     output_path: str = None,
     min_energy_ratio: float = 0.40,
     silence_threshold_db: float = -48.0,
-    progress_cb=None
+    progress_cb=None,
+    stem_label: str = "Vokal"
 ) -> str:
     """
-    Intelligent Vocal Rescue & Ghosting Fallback Shield:
-    Compares the processed vocal (after Karaoke/De-Reverb) against the reference Stage-1
-    isolated vocal (Becruily Mel-Band Roformer). If the processed vocal dropped out,
-    lost body, or had syllables/words swallowed by over-aggressive filtering,
-    this shield seamlessly restores and blends them from the reference vocal without
-    any clicks, phase distortion, or pops.
+    Compare a processed stem with an independent reference and gently restore
+    windows where processing removed too much signal.
     """
     if not os.path.exists(ref_path) or not os.path.exists(proc_path):
         return proc_path
@@ -29,7 +26,7 @@ def apply_vocal_rescue_shield(
         proc_data, proc_sr = sf.read(proc_path, dtype='float32')
     except Exception as e:
         if progress_cb:
-            progress_cb(f"[Vocal Shield Uyarısı] Ses okunamadı, işlem atlandı: {e}")
+            progress_cb(f"[{stem_label} Shield Uyarısı] Ses okunamadı, işlem atlandı: {e}")
         return proc_path
 
     # Ensure equal sample rates
@@ -129,9 +126,9 @@ def apply_vocal_rescue_shield(
     rescued_pct = float(np.mean(w_samples > 0.15)) * 100.0
     if progress_cb:
         if rescued_pct > 0.5:
-            progress_cb(f"   [Vocal Shield] %{rescued_pct:.1f} oranında yutulmuş vokal/hece başarıyla kurtarıldı ve onarıldı!")
+            progress_cb(f"   [{stem_label} Shield] %{rescued_pct:.1f} oranında zayıflayan bölüm referanstan korundu.")
         else:
-            progress_cb("   [Vocal Shield] Vokal dengeli ve temiz; herhangi bir kayıp/yutulma tespit edilmedi.")
+            progress_cb(f"   [{stem_label} Shield] Sinyal dengeli; belirgin bir kayıp tespit edilmedi.")
 
     # Save output
     tmp_out = output_path + ".tmp.wav"

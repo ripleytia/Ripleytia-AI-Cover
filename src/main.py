@@ -30,7 +30,6 @@ import gradio as gr
 import librosa
 import numpy as np
 import soundfile as sf
-import sox
 import yt_dlp
 from pedalboard import Pedalboard, Reverb, Compressor, HighpassFilter
 from pedalboard.io import AudioFile
@@ -203,9 +202,11 @@ def pitch_shift(audio_path, pitch_change):
     output_path = f'{os.path.splitext(audio_path)[0]}_p{pitch_change}.wav'
     if not os.path.exists(output_path):
         y, sr = sf.read(audio_path)
-        tfm = sox.Transformer()
-        tfm.pitch(pitch_change)
-        y_shifted = tfm.build_array(input_array=y, sample_rate_in=sr)
+        is_multichannel = y.ndim > 1
+        audio = y.T if is_multichannel else y
+        y_shifted = librosa.effects.pitch_shift(audio, sr=sr, n_steps=float(pitch_change))
+        if is_multichannel:
+            y_shifted = y_shifted.T
         sf.write(output_path, y_shifted, sr)
 
     return output_path
@@ -242,11 +243,13 @@ def preprocess_song(song_input, mdx_model_params, song_id, is_webui, input_type,
     song_output_dir = os.path.join(output_dir, song_id)
     orig_song_path = convert_to_stereo(orig_song_path)
 
-    uvr5_models_dir = r"C:\Users\Ripleytia\AppData\Local\Programs\Ultimate Vocal Remover\models\MDX_Net_Models"
+    uvr5_models_dir = mdxnet_models_dir
 
     def _ensure_mdxc_patched():
         try:
             from audio_separator.separator import Separator
+            from uvr_model_support import patch_model_catalog
+            patch_model_catalog(Separator)
             try:
                 from audio_separator.separator.architectures.mdxc_separator import MDXCSeparator
                 if not hasattr(MDXCSeparator, '_patched_by_ripleytia'):
@@ -264,7 +267,125 @@ def preprocess_song(song_input, mdx_model_params, song_id, is_webui, input_type,
         except ImportError:
             raise_exception("Gerekli kutuphaneler eksik. Lutfen 'pip install audio-separator' komutunu calistirin.", is_webui)
 
-    if uvr_model == "UVR5 Special 2":
+    if uvr_model == "UVR5 Special 3":
+        Separator = _ensure_mdxc_patched()
+        special3_params = {"segment_size": 256, "batch_size": 1, "overlap": 4, "override_model_segment_size": False}
+
+        def _special3_stem_path(output_files, stem_name):
+            needle = f"({stem_name.lower()})"
+            matches = [os.path.join(song_output_dir, name) for name in output_files if needle in os.path.basename(name).lower()]
+            if not matches:
+                raise RuntimeError(f"UVR5 Special 3 output stem not found: {stem_name}; files={output_files}")
+            return matches[0]
+
+        display_progress('[~] [UVR5 Special 3 - 1/5] BS-Roformer 1296 ile yüksek kaliteli temel vokal/enstrüman ayrımı...', 0.08, is_webui, progress)
+        sep1 = Separator(log_level=30, output_dir=song_output_dir, model_file_dir=uvr5_models_dir, mdxc_params=special3_params)
+        sep1.load_model(model_filename='model_bs_roformer_ep_368_sdr_12.9628.ckpt')
+        res1 = sep1.separate(orig_song_path)
+        vocals_reference_path = _special3_stem_path(res1, 'Vocals')
+        instrumentals_path = _special3_stem_path(res1, 'Instrumental')
+        del sep1
+        gc.collect()
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
+
+        display_progress('[~] [UVR5 Special 3 - 2/5] InstVoc Duality V2 ile bağımsız enstrüman/vokal referansı...', 0.16, is_webui, progress)
+        sep2 = Separator(log_level=30, output_dir=song_output_dir, model_file_dir=uvr5_models_dir, mdxc_params=special3_params)
+        sep2.load_model(model_filename='melband_roformer_instvox_duality_v2.ckpt')
+        res2 = sep2.separate(orig_song_path)
+        duality_vocals_path = _special3_stem_path(res2, 'Vocals')
+        duality_instrumentals_path = _special3_stem_path(res2, 'Instrumental')
+        del sep2
+        gc.collect()
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
+
+        display_progress('[~] [UVR5 Special 3 - 3/5] Kimberley MelBand Vocals ile ayrıntılı ana vokal çıkarımı...', 0.24, is_webui, progress)
+        sep3 = Separator(log_level=30, output_dir=song_output_dir, model_file_dir=uvr5_models_dir, output_single_stem='Vocals', mdxc_params=special3_params)
+        sep3.load_model(model_filename='vocals_mel_band_roformer.ckpt')
+        res3 = sep3.separate(orig_song_path)
+        vocals_candidate_path = _special3_stem_path(res3, 'Vocals')
+        del sep3
+        gc.collect()
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
+
+        display_progress('[~] [UVR5 Special 3] İki bağımsız referansla vokal ve enstrüman kayıpları korunuyor...', 0.30, is_webui, progress)
+        from vocal_shield import apply_vocal_rescue_shield
+        consensus_vocals_path = os.path.join(song_output_dir, f"{song_id}_UVR5Special3_VocalConsensus.wav")
+        vocals_path = apply_vocal_rescue_shield(
+            ref_path=vocals_reference_path,
+            proc_path=vocals_candidate_path,
+            output_path=consensus_vocals_path,
+            stem_label='Vokal',
+            progress_cb=lambda msg: display_progress(msg, 0.31, is_webui, progress),
+        )
+        rescued_instrumentals_path = os.path.join(song_output_dir, f"{song_id}_UVR5Special3_InstrumentalRescued.wav")
+        instrumentals_path = apply_vocal_rescue_shield(
+            ref_path=duality_instrumentals_path,
+            proc_path=instrumentals_path,
+            output_path=rescued_instrumentals_path,
+            stem_label='Enstrüman',
+            progress_cb=lambda msg: display_progress(msg, 0.32, is_webui, progress),
+        )
+
+        display_progress('[~] [UVR5 Special 3 - 4/5] Gabox Karaoke ile ana ve yedek vokal ayrımı...', 0.34, is_webui, progress)
+        sep4 = Separator(log_level=30, output_dir=song_output_dir, model_file_dir=uvr5_models_dir, mdxc_params=special3_params)
+        sep4.load_model(model_filename='mel_band_roformer_karaoke_gabox.ckpt')
+        res4 = sep4.separate(vocals_path)
+        main_vocals_path = _special3_stem_path(res4, 'Vocals')
+        backup_vocals_path = _special3_stem_path(res4, 'Instrumental')
+        del sep4
+        gc.collect()
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
+
+        display_progress('[~] [UVR5 Special 3 - 5/5] BS-Roformer De-Reverb ile oda yankısı temizleniyor...', 0.38, is_webui, progress)
+        sep5 = Separator(log_level=30, output_dir=song_output_dir, model_file_dir=uvr5_models_dir, output_single_stem='noreverb', mdxc_params=special3_params)
+        sep5.load_model(model_filename='deverb_bs_roformer_8_384dim_10depth.ckpt')
+        # This model's stems are named noreverb/reverb; audio-separator 0.18 defaults to Vocals/Instrumental.
+        sep5.model_instance.primary_stem_name = 'noreverb'
+        sep5.model_instance.secondary_stem_name = 'reverb'
+        res5 = sep5.separate(main_vocals_path)
+        dereverb_path = _special3_stem_path(res5, 'noreverb')
+        del sep5
+        gc.collect()
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
+
+        main_vocals_dereverb_path = os.path.join(song_output_dir, f"{song_id}_UVR5Special3_LeadProtected.wav")
+        try:
+            main_vocals_dereverb_path = apply_vocal_rescue_shield(
+                ref_path=main_vocals_path,
+                proc_path=dereverb_path,
+                output_path=main_vocals_dereverb_path,
+                stem_label='Lead Vokal',
+                progress_cb=lambda msg: display_progress(msg, 0.40, is_webui, progress),
+            )
+        except Exception as shield_err:
+            print(f'[UVR5 Special 3 Kalkan Hatası] {shield_err}')
+
+    elif uvr_model == "UVR5 Special 2":
         Separator = _ensure_mdxc_patched()
 
         # Stage 1: SOTA Vocal Isolation (Becruily Mel-Band Roformer Vocals)

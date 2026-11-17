@@ -1,6 +1,7 @@
 import os
 import sys
 import threading
+import queue
 import json
 import tkinter as tk
 import customtkinter as ctk
@@ -13,6 +14,7 @@ import numpy as np
 # Add src path explicitly just in case
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from main import song_cover_pipeline
+from youtube_searcher import search_youtube, download_youtube_audio
 from dataset_builder import (
     build_automatic_dataset,
     calculate_recommended_epochs,
@@ -100,6 +102,17 @@ translations = {
         "mode_cover": "🎵 AI Cover Studio",
         "mode_dataset": "📦 Auto Dataset Builder",
         "mode_train": "🧠 Voice Model Training",
+        "yt_search_toggle": "🔍 Search on YouTube",
+        "yt_panel_title": "🎵 YouTube Search & Quick AI Cover",
+        "yt_search_placeholder": "Enter song, artist name or YouTube URL (e.g. Tarkan, The Weeknd)...",
+        "yt_btn_search": "🔍 Search",
+        "yt_btn_download_select": "📥 Download & Select",
+        "yt_btn_download_cover": "⚡ Download & Cover Now",
+        "yt_searching": "🔍 Searching YouTube...",
+        "yt_search_hint": "Type a song or artist name above and press Enter or click Search.",
+        "yt_no_results": "No videos found. Please try with different keywords.",
+        "yt_downloading": "📥 Downloading audio...",
+        "yt_download_done": "✅ Downloaded and set as input song!",
         "model_select": "1. Select Voice Model",
         "input_select": "2. Input Song (YouTube Link or Local File)",
         "output_select": "Output Directory (Leave empty for default)",
@@ -151,6 +164,17 @@ translations = {
         "mode_cover": "🎵 AI Cover Stüdyosu",
         "mode_dataset": "📦 Otomatik Dataset Hazırlayıcı",
         "mode_train": "🧠 Ses Modelleme (Eğitim)",
+        "yt_search_toggle": "🔍 YouTube'da Ara",
+        "yt_panel_title": "🎵 YouTube Müzik / Video Arama ve Hızlı Cover",
+        "yt_search_placeholder": "Şarkı, sanatçı adı (Örn: Tarkan - Şımarık, Derya Bedavacı) veya YouTube linki...",
+        "yt_btn_search": "🔍 Ara",
+        "yt_btn_download_select": "📥 İndir ve Seç",
+        "yt_btn_download_cover": "⚡ İndir & Cover Yap",
+        "yt_searching": "🔍 YouTube'da aranıyor, lütfen bekleyin...",
+        "yt_search_hint": "YouTube'da aramak için yukarıya şarkı adı yazıp 'Ara' butonuna veya Enter'a basın.",
+        "yt_no_results": "Sonuç bulunamadı. Lütfen farklı kelimelerle tekrar deneyin.",
+        "yt_downloading": "📥 Ses indiriliyor...",
+        "yt_download_done": "✅ İndirildi ve şarkı girişine eklendi!",
         "model_select": "1. Ses Modelini Seçin",
         "input_select": "2. Şarkı (YouTube Linki veya Yerel Dosya)",
         "output_select": "Çıktı Klasörü (Varsayılan için boş bırakın)",
@@ -208,6 +232,8 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.lang = "tr"  # Default Turkish
+        self.ui_queue = queue.Queue()
+        self._check_ui_queue()
         self.title(translations[self.lang]["title"])
         self.geometry("1040x980")
 
@@ -526,7 +552,7 @@ class App(ctk.CTk):
         )
         self.lbl_pipeline_select.pack(pady=(15, 5))
 
-        self.mdx_models = ["Default RVC", "UVR5 Special", "UVR5 Special 2"] + get_mdx_models()
+        self.mdx_models = ["Default RVC", "UVR5 Special", "UVR5 Special 2", "UVR5 Special 3"] + get_mdx_models()
         self.pipeline_dropdown = ctk.CTkOptionMenu(
             self.model_frame,
             values=self.mdx_models,
@@ -549,33 +575,110 @@ class App(ctk.CTk):
             input_inner, text=translations[self.lang]["input_select"], font=("Arial", 14, "bold"), text_color="#DDD"
         )
         self.lbl_input.grid(row=0, column=0, padx=10, pady=5, sticky="w")
-        self.song_input_entry = ctk.CTkEntry(input_inner, textvariable=self.song_input_var, width=500)
+        self.song_input_entry = ctk.CTkEntry(input_inner, textvariable=self.song_input_var, width=440)
         self.song_input_entry.grid(row=0, column=1, padx=10, pady=5)
+
+        input_btn_box = ctk.CTkFrame(input_inner, fg_color="transparent")
+        input_btn_box.grid(row=0, column=2, padx=10, pady=5, sticky="w")
+
         self.btn_browse = ctk.CTkButton(
-            input_inner,
+            input_btn_box,
             text=translations[self.lang]["browse"],
             fg_color=PRIMARY_COLOR,
             hover_color=HOVER_COLOR,
-            width=100,
+            width=85,
             command=self.browse_file,
         )
-        self.btn_browse.grid(row=0, column=2, padx=10, pady=5)
+        self.btn_browse.pack(side="left", padx=(0, 5))
+
+        self.btn_yt_toggle = ctk.CTkButton(
+            input_btn_box,
+            text=translations[self.lang]["yt_search_toggle"],
+            fg_color="#CC0000",
+            hover_color="#990000",
+            width=135,
+            command=self.toggle_yt_panel,
+        )
+        self.btn_yt_toggle.pack(side="left")
 
         self.lbl_output_dir = ctk.CTkLabel(
             input_inner, text=translations[self.lang]["output_select"], font=("Arial", 14, "bold"), text_color="#DDD"
         )
         self.lbl_output_dir.grid(row=1, column=0, padx=10, pady=5, sticky="w")
-        self.output_dir_entry = ctk.CTkEntry(input_inner, textvariable=self.output_dir_var, width=500)
+        self.output_dir_entry = ctk.CTkEntry(input_inner, textvariable=self.output_dir_var, width=440)
         self.output_dir_entry.grid(row=1, column=1, padx=10, pady=5)
         self.btn_browse_dir = ctk.CTkButton(
             input_inner,
             text=translations[self.lang]["browse_dir"],
             fg_color=PRIMARY_COLOR,
             hover_color=HOVER_COLOR,
-            width=100,
+            width=85,
             command=self.browse_dir,
         )
-        self.btn_browse_dir.grid(row=1, column=2, padx=10, pady=5)
+        self.btn_browse_dir.grid(row=1, column=2, padx=10, pady=5, sticky="w")
+
+        # --- YouTube Search & Instant Cover Panel ---
+        self.yt_panel = ctk.CTkFrame(self.input_frame, fg_color="#141414", corner_radius=10, border_color="#2A2A2A", border_width=1)
+        self.yt_panel.pack(fill="x", padx=10, pady=(5, 10))
+
+        yt_header = ctk.CTkFrame(self.yt_panel, fg_color="transparent")
+        yt_header.pack(fill="x", padx=10, pady=(6, 2))
+
+        self.lbl_yt_title = ctk.CTkLabel(
+            yt_header,
+            text=translations[self.lang]["yt_panel_title"],
+            font=("Arial", 13, "bold"),
+            text_color="#FF4444",
+        )
+        self.lbl_yt_title.pack(side="left")
+
+        yt_bar = ctk.CTkFrame(self.yt_panel, fg_color="transparent")
+        yt_bar.pack(fill="x", padx=10, pady=4)
+
+        self.yt_search_var = ctk.StringVar()
+        self.yt_search_entry = ctk.CTkEntry(
+            yt_bar,
+            textvariable=self.yt_search_var,
+            placeholder_text=translations[self.lang]["yt_search_placeholder"],
+            height=34,
+        )
+        self.yt_search_entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
+        self.yt_search_entry.bind("<Return>", lambda e: self.do_yt_search())
+
+        self.btn_yt_search = ctk.CTkButton(
+            yt_bar,
+            text=translations[self.lang]["yt_btn_search"],
+            width=85,
+            height=34,
+            fg_color="#CC0000",
+            hover_color="#990000",
+            font=("Arial", 12, "bold"),
+            command=self.do_yt_search,
+        )
+        self.btn_yt_search.pack(side="left", padx=4)
+
+        self.btn_yt_clear = ctk.CTkButton(
+            yt_bar,
+            text="✕",
+            width=34,
+            height=34,
+            fg_color="#2A2A2A",
+            hover_color="#444444",
+            command=self.clear_yt_search,
+        )
+        self.btn_yt_clear.pack(side="left")
+
+        self.lbl_yt_status = ctk.CTkLabel(
+            self.yt_panel,
+            text=translations[self.lang]["yt_search_hint"],
+            font=("Arial", 11),
+            text_color="#AAAAAA",
+            anchor="w",
+        )
+        self.lbl_yt_status.pack(fill="x", padx=15, pady=(0, 4))
+
+        self.yt_results_frame = ctk.CTkScrollableFrame(self.yt_panel, fg_color="#0D0D0D", height=190, corner_radius=8)
+        self.yt_results_frame.pack(fill="x", padx=10, pady=(0, 10))
 
         # --- Advanced Options TabView ---
         self.tabview = ctk.CTkTabview(
@@ -1609,6 +1712,14 @@ class App(ctk.CTk):
         self.lbl_pipeline_select.configure(text=translations[self.lang]["pipeline_select"])
         self.lbl_input.configure(text=translations[self.lang]["input_select"])
         self.btn_browse.configure(text=translations[self.lang]["browse"])
+        if hasattr(self, "btn_yt_toggle"):
+            self.btn_yt_toggle.configure(text=translations[self.lang]["yt_search_toggle"])
+        if hasattr(self, "lbl_yt_title"):
+            self.lbl_yt_title.configure(text=translations[self.lang]["yt_panel_title"])
+        if hasattr(self, "yt_search_entry"):
+            self.yt_search_entry.configure(placeholder_text=translations[self.lang]["yt_search_placeholder"])
+        if hasattr(self, "btn_yt_search"):
+            self.btn_yt_search.configure(text=translations[self.lang]["yt_btn_search"])
         self.lbl_output_dir.configure(text=translations[self.lang]["output_select"])
         self.btn_browse_dir.configure(text=translations[self.lang]["browse_dir"])
         self.lbl_vocal_pitch.configure(text=translations[self.lang]["vocal_pitch"])
@@ -1728,7 +1839,7 @@ class App(ctk.CTk):
         if self.models and self.model_var.get() not in self.models:
             self.model_var.set(self.models[0])
 
-        self.mdx_models = ["Default RVC", "UVR5 Special", "UVR5 Special 2"] + get_mdx_models()
+        self.mdx_models = ["Default RVC", "UVR5 Special", "UVR5 Special 2", "UVR5 Special 3"] + get_mdx_models()
         self.pipeline_dropdown.configure(values=self.mdx_models)
         print("[System] Ses ve UVR5 modelleri yenilendi.")
 
@@ -1781,6 +1892,176 @@ class App(ctk.CTk):
         self.cb_force_reprocess.configure(
             state="disabled", text=translations[self.lang]["force_reprocess"] + translations[self.lang]["no_cache"]
         )
+
+    def _check_ui_queue(self):
+        try:
+            while True:
+                fn, args, kwargs = self.ui_queue.get_nowait()
+                try:
+                    fn(*args, **kwargs)
+                except Exception as e:
+                    print(f"[UI Queue Error] {e}")
+        except queue.Empty:
+            pass
+        except Exception:
+            pass
+        try:
+            self.after(50, self._check_ui_queue)
+        except Exception:
+            pass
+
+    def dispatch_to_ui(self, fn, *args, **kwargs):
+        self.ui_queue.put((fn, args, kwargs))
+
+    def toggle_yt_panel(self):
+        curr_song = self.song_input_var.get().strip()
+        if curr_song and not os.path.exists(curr_song):
+            self.yt_search_var.set(curr_song)
+
+        if self.yt_panel.winfo_ismapped():
+            self.yt_panel.pack_forget()
+        else:
+            self.yt_panel.pack(fill="x", padx=10, pady=(5, 10))
+            self.yt_search_entry.focus()
+            if self.yt_search_var.get().strip():
+                self.do_yt_search()
+
+    def clear_yt_search(self):
+        self.yt_search_var.set("")
+        for w in self.yt_results_frame.winfo_children():
+            w.destroy()
+        self.lbl_yt_status.configure(text=translations[self.lang]["yt_search_hint"], text_color="#AAAAAA")
+
+    def do_yt_search(self):
+        query = self.yt_search_var.get().strip()
+        if not query:
+            song_in = self.song_input_var.get().strip()
+            if song_in and not os.path.exists(song_in):
+                query = song_in
+                self.yt_search_var.set(query)
+
+        if not query:
+            self.lbl_yt_status.configure(text="Lütfen aranacak şarkı veya sanatçı adını yazın.", text_color="#FFB300")
+            return
+
+        self.btn_yt_search.configure(state="disabled")
+        self.lbl_yt_status.configure(text=translations[self.lang]["yt_searching"], text_color="#00E5FF")
+
+        for w in self.yt_results_frame.winfo_children():
+            w.destroy()
+
+        def _worker():
+            try:
+                results = search_youtube(query, max_results=6)
+                self.dispatch_to_ui(self._render_yt_results, results, None)
+            except Exception as e:
+                self.dispatch_to_ui(self._render_yt_results, [], str(e))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _render_yt_results(self, results, error):
+        self.btn_yt_search.configure(state="normal")
+        for w in self.yt_results_frame.winfo_children():
+            w.destroy()
+
+        if error:
+            self.lbl_yt_status.configure(text=f"❌ Arama hatası: {error}", text_color="#FF5252")
+            return
+
+        if not results:
+            self.lbl_yt_status.configure(text=translations[self.lang]["yt_no_results"], text_color="#FFB300")
+            return
+
+        self.lbl_yt_status.configure(
+            text=f"✅ {len(results)} sonuç bulundu. Videoyu seçip hemen indirebilir veya tek tıkla doğrudan Cover başlatabilirsiniz:",
+            text_color="#69F0AE"
+        )
+
+        for video in results:
+            card = ctk.CTkFrame(self.yt_results_frame, fg_color="#181818", corner_radius=8, border_color="#2A2A2A", border_width=1)
+            card.pack(fill="x", padx=4, pady=3)
+
+            info_col = ctk.CTkFrame(card, fg_color="transparent")
+            info_col.pack(side="left", fill="both", expand=True, padx=10, pady=6)
+
+            title_clean = video["title"]
+            if len(title_clean) > 80:
+                title_clean = title_clean[:77] + "..."
+
+            lbl_t = ctk.CTkLabel(info_col, text=f"🎵 {title_clean}", font=("Arial", 12, "bold"), text_color="#FFFFFF", anchor="w")
+            lbl_t.pack(fill="x", anchor="w")
+
+            meta_str = f"👤 {video['channel']}   •   ⏱️ {video['duration_string']}"
+            if video.get("views"):
+                meta_str += f"   •   👁️ {video['views']} görüntüleme"
+
+            lbl_m = ctk.CTkLabel(info_col, text=meta_str, font=("Arial", 11), text_color="#9E9E9E", anchor="w")
+            lbl_m.pack(fill="x", anchor="w")
+
+            btn_col = ctk.CTkFrame(card, fg_color="transparent")
+            btn_col.pack(side="right", padx=8, pady=6)
+
+            btn_dl = ctk.CTkButton(
+                btn_col,
+                text=translations[self.lang]["yt_btn_download_select"],
+                width=110,
+                height=30,
+                fg_color="#333333",
+                hover_color="#555555",
+                font=("Arial", 11),
+                command=lambda v=video: self.start_yt_download(v, auto_cover=False),
+            )
+            btn_dl.pack(side="left", padx=4)
+
+            btn_cov = ctk.CTkButton(
+                btn_col,
+                text=translations[self.lang]["yt_btn_download_cover"],
+                width=140,
+                height=30,
+                fg_color=PRIMARY_COLOR,
+                hover_color=HOVER_COLOR,
+                font=("Arial", 11, "bold"),
+                command=lambda v=video: self.start_yt_download(v, auto_cover=True),
+            )
+            btn_cov.pack(side="left", padx=4)
+
+    def start_yt_download(self, video, auto_cover=False):
+        download_dir = os.path.join(output_dir, "youtube_downloads")
+        os.makedirs(download_dir, exist_ok=True)
+
+        title_short = video["title"][:40]
+        self.lbl_yt_status.configure(text=f"📥 İndiriliyor: {title_short}...", text_color="#00E5FF")
+
+        def _download_thread():
+            try:
+                def progress_cb(msg):
+                    self.dispatch_to_ui(lambda m=msg: self.lbl_yt_status.configure(text=f"📥 [{title_short}...] {m}", text_color="#00E5FF"))
+
+                mp3_path = download_youtube_audio(video["url"], download_dir, progress_cb=progress_cb)
+
+                def on_done():
+                    self.song_input_var.set(mp3_path)
+                    self.lbl_yt_status.configure(text=f"✅ '{video['title']}' indirildi ve şarkı girişine eklendi!", text_color="#69F0AE")
+                    print(f"[YouTube] İndirildi: {mp3_path}")
+                    self.check_file_cache()
+
+                    if auto_cover:
+                        sel_model = self.model_var.get()
+                        if not sel_model or sel_model == "Select a model" or sel_model == "":
+                            self.lbl_yt_status.configure(
+                                text=f"✅ '{video['title']}' indirildi! Lütfen yukarıdan bir Ses Modeli seçip 'Oluştur'a basın.",
+                                text_color="#FFB300",
+                            )
+                            return
+                        print(f"[YouTube Auto-Cover] Otomatik cover başlatılıyor -> Model: {sel_model}")
+                        self.start_generation()
+
+                self.dispatch_to_ui(on_done)
+            except Exception as e:
+                err_str = str(e)
+                self.dispatch_to_ui(lambda err=err_str: self.lbl_yt_status.configure(text=f"❌ İndirme hatası: {err}", text_color="#FF5252"))
+
+        threading.Thread(target=_download_thread, daemon=True).start()
 
     def browse_file(self):
         filepath = filedialog.askopenfilename(filetypes=[("Audio Files", "*.wav;*.mp3;*.flac;*.ogg;*.m4a")])
