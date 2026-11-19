@@ -1586,6 +1586,12 @@ class App(ctk.CTk):
         if self.batch_manager.is_running:
             return
 
+        if hasattr(self, "audio_player") and self.audio_player:
+            try:
+                self.audio_player.unload()
+            except Exception:
+                pass
+
         def _batch_process(item, prog_cb):
             # Download YouTube if needed
             s_in = item["song_input"]
@@ -2746,10 +2752,19 @@ class App(ctk.CTk):
             print("[Hata] Lütfen bir ses modeli ve şarkı seçin.")
             return
 
+        # Unload audio player to release Windows file locks on previous outputs
+        if hasattr(self, "audio_player") and self.audio_player:
+            try:
+                self.audio_player.unload()
+            except Exception as pe:
+                print(f"[Player Uyarısı] {pe}")
+
         self.generate_btn.configure(state="disabled", text=translations[self.lang]["generating"])
 
         def run_pipeline():
             try:
+                if hasattr(self, "audio_player") and self.audio_player:
+                    self.dispatch_to_ui(self.audio_player.unload)
                 print("=" * 60)
                 print(f"[Başlat] Ripleytia AI Cover Boru Hattı Başlatılıyor...")
                 print(f"[Şarkı] {song}")

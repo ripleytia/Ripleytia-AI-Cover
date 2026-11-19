@@ -119,6 +119,19 @@ class AudioPlayerWidget(ctk.CTkFrame):
         )
         self.btn_stop.pack(side="left", padx=4)
 
+        self.btn_reset = ctk.CTkButton(
+            self.ctrl_frame,
+            text="🗑️ Oynatıcıyı Sıfırla",
+            width=130,
+            height=30,
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            fg_color="#3A1C28",
+            hover_color="#5A2C38",
+            text_color="#FF8A80",
+            command=self.unload
+        )
+        self.btn_reset.pack(side="left", padx=6)
+
         # Volume control
         self.lbl_vol = ctk.CTkLabel(self.ctrl_frame, text="🔊", font=ctk.CTkFont(size=14))
         self.lbl_vol.pack(side="right", padx=(4, 0))
@@ -236,6 +249,7 @@ class AudioPlayerWidget(ctk.CTkFrame):
     def stop(self):
         try:
             pygame.mixer.music.stop()
+            pygame.mixer.music.unload()
         except Exception:
             pass
         self.is_playing = False
@@ -246,6 +260,32 @@ class AudioPlayerWidget(ctk.CTkFrame):
         total_str = self._format_time(self.duration_seconds)
         self.lbl_time.configure(text=f"00:00 / {total_str}")
         self._draw_waveform(progress_ratio=0.0)
+
+    def unload(self):
+        """
+        Completely stops and unloads the audio file from pygame mixer,
+        releases all Windows file locks, and resets player UI to initial empty state.
+        """
+        try:
+            pygame.mixer.music.stop()
+            pygame.mixer.music.unload()
+        except Exception:
+            pass
+        self.current_file = None
+        self.duration_seconds = 0.0
+        self.is_playing = False
+        self.is_paused = False
+        self.pause_offset = 0.0
+        self.waveform_peaks = []
+        self.slider.set(0.0)
+        self.slider.configure(to=100.0)
+        self.lbl_title.configure(text="🎧 Dahili Oynatıcı: Ses dosyası bekleniyor...")
+        self.lbl_time.configure(text="00:00 / 00:00")
+        self.btn_play.configure(text="▶️ Oynat", fg_color="#5D3FD3")
+        try:
+            self.canvas.delete("all")
+        except Exception:
+            pass
 
     def _set_volume(self, val):
         try:

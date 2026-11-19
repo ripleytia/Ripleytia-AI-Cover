@@ -550,7 +550,24 @@ def combine_audio(audio_paths, output_path, main_gain, backup_gain, inst_gain, o
     main_vocal_audio = AudioSegment.from_wav(audio_paths[0]) - 4 + main_gain
     backup_vocal_audio = AudioSegment.from_wav(audio_paths[1]) - 6 + backup_gain
     instrumental_audio = AudioSegment.from_wav(audio_paths[2]) - 7 + inst_gain
-    main_vocal_audio.overlay(backup_vocal_audio).overlay(instrumental_audio).export(output_path, format=output_format)
+    combined = main_vocal_audio.overlay(backup_vocal_audio).overlay(instrumental_audio)
+
+    # Windows file locking protection
+    try:
+        if os.path.exists(output_path):
+            try:
+                os.remove(output_path)
+            except Exception:
+                pass
+        combined.export(output_path, format=output_format)
+        return output_path
+    except PermissionError:
+        import time
+        base, ext = os.path.splitext(output_path)
+        fallback_path = f"{base}_{int(time.time())}{ext}"
+        print(f"[Dosya Kilidi Korumasi] '{output_path}' baska bir uygulama tarafindan acik! Guvenle suraya kaydedildi: {fallback_path}")
+        combined.export(fallback_path, format=output_format)
+        return fallback_path
 
 
 def to_float(val, default=0.0):
@@ -784,7 +801,7 @@ def song_cover_pipeline(song_input, voice_model, pitch_change, keep_files=False,
                 print(f"[Sidechain Hatasi] {sde}")
 
         display_progress('[~] Combining AI Vocals and Instrumentals...', 0.90, is_webui, progress)
-        combine_audio([ai_vocals_mixed_path, backup_vocals_path, instrumentals_to_mix], ai_cover_path, main_gain, backup_gain, inst_gain, output_format)
+        ai_cover_path = combine_audio([ai_vocals_mixed_path, backup_vocals_path, instrumentals_to_mix], ai_cover_path, main_gain, backup_gain, inst_gain, output_format)
 
         # 8. Radio-Ready -14 LUFS Mastering & True Peak Limiter
         if enable_lufs_mastering and os.path.exists(ai_cover_path):
@@ -794,7 +811,13 @@ def song_cover_pipeline(song_input, voice_model, pitch_change, keep_files=False,
                 from vocal_chain import apply_lufs_loudness_mastering
                 cov_data, cov_sr = sf.read(ai_cover_path, dtype='float32')
                 mastered = apply_lufs_loudness_mastering(cov_data, cov_sr, target_lufs=-14.0, true_peak_ceiling=-1.0)
-                sf.write(ai_cover_path, mastered.T if mastered.ndim > 1 and mastered.shape[0] == 2 else mastered, cov_sr)
+                try:
+                    sf.write(ai_cover_path, mastered.T if mastered.ndim > 1 and mastered.shape[0] == 2 else mastered, cov_sr)
+                except PermissionError:
+                    import time
+                    base, ext = os.path.splitext(ai_cover_path)
+                    ai_cover_path = f"{base}_mastered{ext}"
+                    sf.write(ai_cover_path, mastered.T if mastered.ndim > 1 and mastered.shape[0] == 2 else mastered, cov_sr)
             except Exception as lfe:
                 print(f"[LUFS Mastering Hatasi] {lfe}")
 
