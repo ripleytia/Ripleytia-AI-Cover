@@ -454,8 +454,8 @@ class App(ctk.CTk):
         self.pipeline_var = ctk.StringVar(value="UVR5 Special 2")
         self.song_input_var = ctk.StringVar()
         self.output_dir_var = ctk.StringVar(value=output_dir)
-        self.pitch_var = tk.IntVar(value=0)
-        self.pitch_all_var = tk.IntVar(value=0)
+        self.pitch_var = tk.DoubleVar(value=0.0)
+        self.pitch_all_var = tk.DoubleVar(value=0.0)
         self.main_gain_var = tk.IntVar(value=0)
         self.backup_gain_var = tk.IntVar(value=0)
         self.inst_gain_var = tk.IntVar(value=0)
@@ -492,7 +492,7 @@ class App(ctk.CTk):
         # --- Batch View Variables ---
         self.batch_input_var = ctk.StringVar()
         self.batch_model_var = ctk.StringVar()
-        self.batch_pitch_var = tk.IntVar(value=0)
+        self.batch_pitch_var = tk.DoubleVar(value=0.0)
         self.batch_night_mode_var = ctk.BooleanVar(value=True)
 
         # --- Vocal Analysis Variables ---
@@ -1036,20 +1036,46 @@ class App(ctk.CTk):
         self.lbl_vocal_pitch = ctk.CTkLabel(tab_pitch, text=translations[self.lang]["vocal_pitch"])
         self.lbl_vocal_pitch.pack(pady=(4, 0))
         ctk.CTkSlider(
-            tab_pitch, from_=-12, to=12, number_of_steps=24, variable=self.pitch_var, button_color=PRIMARY_COLOR, button_hover_color=HOVER_COLOR
+            tab_pitch, from_=-12, to=12, number_of_steps=240, variable=self.pitch_var, button_color=PRIMARY_COLOR, button_hover_color=HOVER_COLOR
         ).pack()
-        self.pitch_label = ctk.CTkLabel(tab_pitch, text=str(self.pitch_var.get()))
-        self.pitch_label.pack()
-        self.pitch_var.trace_add("write", lambda *args: self.pitch_label.configure(text=str(self.pitch_var.get())))
+        # Pitch label + manual entry row
+        _pitch_row1 = ctk.CTkFrame(tab_pitch, fg_color="transparent")
+        _pitch_row1.pack()
+        self.pitch_label = ctk.CTkLabel(_pitch_row1, text=f"{self.pitch_var.get():.2f}", width=55)
+        self.pitch_label.pack(side="left", padx=(0, 4))
+        self._pitch_entry = ctk.CTkEntry(_pitch_row1, textvariable=self.pitch_var, width=65)
+        self._pitch_entry.pack(side="left")
+        ctk.CTkLabel(_pitch_row1, text="st", text_color="#888", font=("Arial", 11)).pack(side="left", padx=2)
+
+        def _update_pitch_label(*args):
+            try:
+                val = round(float(self.pitch_var.get()), 2)
+                self.pitch_label.configure(text=f"{val:+.2f}")
+            except Exception:
+                pass
+        self.pitch_var.trace_add("write", _update_pitch_label)
 
         self.lbl_overall_pitch = ctk.CTkLabel(tab_pitch, text=translations[self.lang]["overall_pitch"])
         self.lbl_overall_pitch.pack(pady=(6, 0))
         ctk.CTkSlider(
-            tab_pitch, from_=-12, to=12, number_of_steps=24, variable=self.pitch_all_var, button_color=PRIMARY_COLOR, button_hover_color=HOVER_COLOR
+            tab_pitch, from_=-12, to=12, number_of_steps=240, variable=self.pitch_all_var, button_color=PRIMARY_COLOR, button_hover_color=HOVER_COLOR
         ).pack()
-        self.pitch_all_label = ctk.CTkLabel(tab_pitch, text=str(self.pitch_all_var.get()))
-        self.pitch_all_label.pack()
-        self.pitch_all_var.trace_add("write", lambda *args: self.pitch_all_label.configure(text=str(self.pitch_all_var.get())))
+        # Pitch all label + manual entry row
+        _pitch_row2 = ctk.CTkFrame(tab_pitch, fg_color="transparent")
+        _pitch_row2.pack()
+        self.pitch_all_label = ctk.CTkLabel(_pitch_row2, text=f"{self.pitch_all_var.get():.2f}", width=55)
+        self.pitch_all_label.pack(side="left", padx=(0, 4))
+        self._pitch_all_entry = ctk.CTkEntry(_pitch_row2, textvariable=self.pitch_all_var, width=65)
+        self._pitch_all_entry.pack(side="left")
+        ctk.CTkLabel(_pitch_row2, text="st", text_color="#888", font=("Arial", 11)).pack(side="left", padx=2)
+
+        def _update_pitch_all_label(*args):
+            try:
+                val = round(float(self.pitch_all_var.get()), 2)
+                self.pitch_all_label.configure(text=f"{val:+.2f}")
+            except Exception:
+                pass
+        self.pitch_all_var.trace_add("write", _update_pitch_all_label)
 
         # - Audio Mixing
         tab_mix = self.tabs["tab_mix"]
@@ -1563,7 +1589,7 @@ class App(ctk.CTk):
             lbl_t = ctk.CTkLabel(col1, text=f"🎵 {item['song_name']}", font=("Arial", 13, "bold"), text_color="#FFF", anchor="w")
             lbl_t.pack(fill="x")
             lbl_sub = ctk.CTkLabel(
-                col1, text=f"Ses Modeli: {item['model_name']}  |  Pitch: {item['pitch']:+d}  |  Durum: {item['status']}",
+                col1, text=f"Ses Modeli: {item['model_name']}  |  Pitch: {item['pitch']:+.2f}  |  Durum: {item['status']}",
                 font=("Arial", 11), text_color="#A390E4", anchor="w"
             )
             lbl_sub.pack(fill="x")
@@ -2543,8 +2569,8 @@ class App(ctk.CTk):
                 self.model_var.set(s["model"])
             if s.get("pipeline") in self.pipelines:
                 self.pipeline_var.set(s["pipeline"])
-            self.pitch_var.set(s.get("pitch", 0))
-            self.pitch_all_var.set(s.get("pitch_all", 0))
+            self.pitch_var.set(float(s.get("pitch", 0.0)))
+            self.pitch_all_var.set(float(s.get("pitch_all", 0.0)))
             self.main_gain_var.set(s.get("main_gain", 0))
             self.backup_gain_var.set(s.get("backup_gain", 0))
             self.inst_gain_var.set(s.get("inst_gain", 0))
