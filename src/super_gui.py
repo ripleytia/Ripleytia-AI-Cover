@@ -177,6 +177,7 @@ translations = {
         "tab_mix": "Ses Karıştırma (Mix)",
         "tab_fx": "Efektler (Reverb)",
         "tab_adv": "Gelişmiş Ayarlar",
+        "tab_mastering": "🎛️ Stüdyo & Mastering",
         "vocal_pitch": "Vokal Ton (Pitch) Değişimi (Oktav)",
         "overall_pitch": "Vokal Ton Değişimi (Yarım Sesler)",
         "main_gain": "Ana Vokal Ses Seviyesi (dB)",
@@ -243,6 +244,7 @@ translations = {
         "tab_mix": "Audio Mixing",
         "tab_fx": "Effects (Reverb)",
         "tab_adv": "Advanced Settings",
+        "tab_mastering": "🎛️ Studio & Mastering",
         "vocal_pitch": "Vocal Pitch Change (Octaves)",
         "overall_pitch": "Vocal Pitch Change (Semitones)",
         "main_gain": "Main Vocals Gain (dB)",
@@ -309,6 +311,7 @@ translations = {
         "tab_mix": "音量ミキシング",
         "tab_fx": "リバーブ効果",
         "tab_adv": "詳細設定",
+        "tab_mastering": "🎛️ スタジオ＆マスタリング",
         "vocal_pitch": "ピッチ変更 (オクターブ)",
         "overall_pitch": "ピッチ微調整 (半音)",
         "main_gain": "メインボーカル音量",
@@ -375,6 +378,7 @@ translations = {
         "tab_mix": "오디오 믹싱",
         "tab_fx": "리버브 효과",
         "tab_adv": "고급 설정",
+        "tab_mastering": "🎛️ 스튜디오 및 마스터링",
         "vocal_pitch": "피치 변경 (옥타브)",
         "overall_pitch": "피치 미세조정 (반음)",
         "main_gain": "메인 보컬 볼륨",
@@ -472,6 +476,18 @@ class App(ctk.CTk):
         self.keep_files_var = ctk.BooleanVar(value=False)
         self.force_reprocess_var = ctk.BooleanVar(value=False)
         self.output_format_var = ctk.StringVar(value="mp3")
+
+        # --- Studio Mastering & Vocal Chain Variables ---
+        self.deesser_var = ctk.BooleanVar(value=True)
+        self.studio_eq_var = ctk.BooleanVar(value=True)
+        self.sidechain_var = ctk.BooleanVar(value=True)
+        self.lufs_master_var = ctk.BooleanVar(value=True)
+        self.breath_passthrough_var = ctk.BooleanVar(value=True)
+        self.doubler_var = ctk.BooleanVar(value=False)
+        self.harmonies_var = ctk.BooleanVar(value=False)
+        self.harmony_mode_var = ctk.StringVar(value="3rd_and_5th (+Maj 3rd & 5th)")
+        self.formant_shift_var = tk.DoubleVar(value=0.0)
+        self.dynamic_pitch_rules_var = ctk.StringVar(value="")
 
         # --- Batch View Variables ---
         self.batch_input_var = ctk.StringVar()
@@ -974,7 +990,7 @@ class App(ctk.CTk):
         )
         self.tabview.pack(fill="x", pady=10, padx=10)
 
-        self.tab_names = ["tab_tuning", "tab_mix", "tab_fx", "tab_adv"]
+        self.tab_names = ["tab_tuning", "tab_mix", "tab_fx", "tab_adv", "tab_mastering"]
         self.tabs = {}
         self.current_tab_titles = {}
         for t in self.tab_names:
@@ -1149,7 +1165,7 @@ class App(ctk.CTk):
         self.lbl_f0_method.pack(pady=(5, 0))
         self.f0_dropdown = ctk.CTkOptionMenu(
             tab_adv,
-            values=["rmvpe", "crepe", "pm", "harvest"],
+            values=["rmvpe", "crepe", "pm", "harvest", "ensemble_consensus"],
             variable=self.f0_method_var,
             fg_color=PRIMARY_COLOR,
             button_color=HOVER_COLOR,
@@ -1220,6 +1236,91 @@ class App(ctk.CTk):
         ctk.CTkSegmentedButton(
             tab_adv, values=["mp3", "wav"], variable=self.output_format_var, selected_color=PRIMARY_COLOR, selected_hover_color=HOVER_COLOR
         ).pack(pady=5)
+
+        # - Studio Mastering & Vocal Chain Tab
+        tab_mast = self.tabs["tab_mastering"]
+
+        mast_scroll = ctk.CTkScrollableFrame(tab_mast, fg_color="transparent", height=280)
+        mast_scroll.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # 1. Section: Miksaj & Vokal İşleme
+        sec1_frame = ctk.CTkFrame(mast_scroll, fg_color="#12121A", corner_radius=8, border_color="#5D3FD3", border_width=1)
+        sec1_frame.pack(fill="x", padx=5, pady=5)
+        ctk.CTkLabel(sec1_frame, text="🎤 Kategori 1: Miksaj & Vokal İşleme Zinciri", font=("Arial", 12, "bold"), text_color="#A390E4").pack(anchor="w", padx=10, pady=(6, 4))
+
+        cb_row1 = ctk.CTkFrame(sec1_frame, fg_color="transparent")
+        cb_row1.pack(fill="x", padx=10, pady=4)
+        self.cb_deesser = ctk.CTkCheckBox(cb_row1, text="Akıllı De-Esser (5kHz-9kHz Tıslama & Sibilance Kontrolü)", variable=self.deesser_var, fg_color=PRIMARY_COLOR, hover_color=HOVER_COLOR)
+        self.cb_deesser.pack(side="left", padx=(0, 20))
+        self.cb_studio_eq = ctk.CTkCheckBox(cb_row1, text="4-Bant Stüdyo Parametrik EQ (80Hz LowCut, 250Hz Gövde, 450Hz MudCut, 12kHz Air)", variable=self.studio_eq_var, fg_color=PRIMARY_COLOR, hover_color=HOVER_COLOR)
+        self.cb_studio_eq.pack(side="left")
+
+        cb_row2 = ctk.CTkFrame(sec1_frame, fg_color="transparent")
+        cb_row2.pack(fill="x", padx=10, pady=(2, 8))
+        self.cb_doubler = ctk.CTkCheckBox(cb_row2, text="Stereo Vokal Genişletici & Doubler (Vocal Widener - Geniş Sahne)", variable=self.doubler_var, fg_color=PRIMARY_COLOR, hover_color=HOVER_COLOR)
+        self.cb_doubler.pack(side="left", padx=(0, 20))
+        self.cb_sidechain = ctk.CTkCheckBox(cb_row2, text="Dinamik Sidechain Ducking (1kHz-3.5kHz Enstrüman Cebi Açar)", variable=self.sidechain_var, fg_color=PRIMARY_COLOR, hover_color=HOVER_COLOR)
+        self.cb_sidechain.pack(side="left")
+
+        # 2. Section: AI Vokal Doğallığı & Dönüşüm
+        sec2_frame = ctk.CTkFrame(mast_scroll, fg_color="#12121A", corner_radius=8, border_color="#00ADB5", border_width=1)
+        sec2_frame.pack(fill="x", padx=5, pady=5)
+        ctk.CTkLabel(sec2_frame, text="✨ Kategori 2: AI Vokal Doğallığı & Dönüşüm", font=("Arial", 12, "bold"), text_color="#00ADB5").pack(anchor="w", padx=10, pady=(6, 4))
+
+        cb_row3 = ctk.CTkFrame(sec2_frame, fg_color="transparent")
+        cb_row3.pack(fill="x", padx=10, pady=4)
+        self.cb_breath_pass = ctk.CTkCheckBox(cb_row3, text="Orijinal İnsan Nefeslerini Koruma & Geri Enjekte Etme (Breath Passthrough)", variable=self.breath_passthrough_var, fg_color="#00ADB5", hover_color="#007F85")
+        self.cb_breath_pass.pack(side="left")
+
+        formant_row = ctk.CTkFrame(sec2_frame, fg_color="transparent")
+        formant_row.pack(fill="x", padx=10, pady=(4, 8))
+        ctk.CTkLabel(formant_row, text="Formant Shifter (Ses Yolu Rezonansı):", font=("Arial", 11)).pack(side="left", padx=(0, 10))
+        self.formant_slider = ctk.CTkSlider(formant_row, from_=-6.0, to=6.0, number_of_steps=24, variable=self.formant_shift_var, width=220, button_color="#00ADB5", button_hover_color="#007F85")
+        self.formant_slider.pack(side="left", padx=5)
+        self.lbl_formant_val = ctk.CTkLabel(formant_row, text="0.0 st (Doğal)", font=("Arial", 11, "bold"), text_color="#00ADB5")
+        self.lbl_formant_val.pack(side="left", padx=10)
+
+        def _update_formant_label(*args):
+            val = round(self.formant_shift_var.get(), 1)
+            desc = " (Doğal)" if abs(val) < 0.1 else (" (Kalın/Erkeksi Gövde)" if val < 0 else " (İnce/Feminen Rezonans)")
+            self.lbl_formant_val.configure(text=f"{val:+.1f} st{desc}")
+
+        self.formant_shift_var.trace_add("write", _update_formant_label)
+
+        # 3. Section: Yayın Standardı & Mastering
+        sec3_frame = ctk.CTkFrame(mast_scroll, fg_color="#12121A", corner_radius=8, border_color="#FFB300", border_width=1)
+        sec3_frame.pack(fill="x", padx=5, pady=5)
+        ctk.CTkLabel(sec3_frame, text="🏆 Kategori 3: Yayın Standardı Mastering & Armoni", font=("Arial", 12, "bold"), text_color="#FFB300").pack(anchor="w", padx=10, pady=(6, 4))
+
+        cb_row4 = ctk.CTkFrame(sec3_frame, fg_color="transparent")
+        cb_row4.pack(fill="x", padx=10, pady=4)
+        self.cb_lufs_master = ctk.CTkCheckBox(cb_row4, text="Otomatik -14 LUFS Loudness Matcher & True Peak Limiter (-1.0 dBFS - Spotify/YT Uyumlu)", variable=self.lufs_master_var, fg_color="#FFB300", hover_color="#FFA000")
+        self.cb_lufs_master.pack(side="left")
+
+        harm_row = ctk.CTkFrame(sec3_frame, fg_color="transparent")
+        harm_row.pack(fill="x", padx=10, pady=4)
+        self.cb_harmonies = ctk.CTkCheckBox(harm_row, text="AI Destekli Armoni & Çift Ses (Backing Vocals):", variable=self.harmonies_var, fg_color="#FFB300", hover_color="#FFA000")
+        self.cb_harmonies.pack(side="left", padx=(0, 10))
+        self.harmony_menu = ctk.CTkOptionMenu(
+            harm_row,
+            values=["3rd_and_5th (+Maj 3rd & 5th)", "octave_down (Alt Oktav Gövde)", "trio_choir (Koro: +3rd, +5th, -Oktav)"],
+            variable=self.harmony_mode_var,
+            width=260,
+            fg_color="#332A15",
+            button_color="#FFB300"
+        )
+        self.harmony_menu.pack(side="left")
+
+        dyn_pitch_frame = ctk.CTkFrame(sec3_frame, fg_color="transparent")
+        dyn_pitch_frame.pack(fill="x", padx=10, pady=(4, 8))
+        ctk.CTkLabel(dyn_pitch_frame, text="Bölüm Bazlı Dinamik Pitch (Verse vs Chorus):", font=("Arial", 11)).pack(side="left", padx=(0, 8))
+        self.entry_dyn_pitch = ctk.CTkEntry(
+            dyn_pitch_frame,
+            textvariable=self.dynamic_pitch_rules_var,
+            placeholder_text="Örn: 00:00-01:15: 0; 01:15-02:00: -2; 02:00-03:30: +1",
+            width=420
+        )
+        self.entry_dyn_pitch.pack(side="left", fill="x", expand=True)
 
         # --- Lyrics & Translation Bar ---
         lyrics_bar = ctk.CTkFrame(self.cover_view_frame, fg_color="#181824", corner_radius=10)
@@ -2397,6 +2498,16 @@ class App(ctk.CTk):
             "keep_files": self.keep_files_var.get(),
             "output_format": self.output_format_var.get(),
             "output_dir": self.output_dir_var.get(),
+            "deesser": self.deesser_var.get(),
+            "studio_eq": self.studio_eq_var.get(),
+            "sidechain": self.sidechain_var.get(),
+            "lufs_master": self.lufs_master_var.get(),
+            "breath_pass": self.breath_passthrough_var.get(),
+            "doubler": self.doubler_var.get(),
+            "harmonies": self.harmonies_var.get(),
+            "harmony_mode": self.harmony_mode_var.get(),
+            "formant_shift": self.formant_shift_var.get(),
+            "dyn_pitch": self.dynamic_pitch_rules_var.get(),
         }
         with open(settings_path, 'w', encoding='utf-8') as f:
             json.dump(settings, f, indent=4)
@@ -2438,6 +2549,16 @@ class App(ctk.CTk):
             self.keep_files_var.set(s.get("keep_files", False))
             self.output_format_var.set(s.get("output_format", "mp3"))
             self.output_dir_var.set(s.get("output_dir", output_dir))
+            self.deesser_var.set(s.get("deesser", True))
+            self.studio_eq_var.set(s.get("studio_eq", True))
+            self.sidechain_var.set(s.get("sidechain", True))
+            self.lufs_master_var.set(s.get("lufs_master", True))
+            self.breath_passthrough_var.set(s.get("breath_pass", True))
+            self.doubler_var.set(s.get("doubler", False))
+            self.harmonies_var.set(s.get("harmonies", False))
+            self.harmony_mode_var.set(s.get("harmony_mode", "3rd_and_5th (+Maj 3rd & 5th)"))
+            self.formant_shift_var.set(s.get("formant_shift", 0.0))
+            self.dynamic_pitch_rules_var.set(s.get("dyn_pitch", ""))
         except Exception as e:
             print(f"[Settings] Error loading settings: {e}")
 
@@ -2665,6 +2786,16 @@ class App(ctk.CTk):
                     uvr_model=self.pipeline_var.get(),
                     vocal_noise_gate=self.noise_gate_var.get(),
                     noise_gate_threshold=self.noise_gate_thresh_var.get(),
+                    enable_deesser=self.deesser_var.get(),
+                    enable_studio_eq=self.studio_eq_var.get(),
+                    enable_doubler=self.doubler_var.get(),
+                    enable_sidechain=self.sidechain_var.get(),
+                    enable_lufs_mastering=self.lufs_master_var.get(),
+                    enable_breath_passthrough=self.breath_passthrough_var.get(),
+                    formant_shift=self.formant_shift_var.get(),
+                    generate_harmonies=self.harmonies_var.get(),
+                    harmony_mode=self.harmony_mode_var.get().split()[0],
+                    dynamic_pitch_rules=self.dynamic_pitch_rules_var.get(),
                 )
 
                 self.last_output_path = out_path
@@ -2707,6 +2838,16 @@ class App(ctk.CTk):
                         pitch_change=self.pitch_var.get(),
                         f0_method=self.f0_method_var.get(),
                         uvr_model=self.pipeline_var.get(),
+                        enable_deesser=self.deesser_var.get(),
+                        enable_studio_eq=self.studio_eq_var.get(),
+                        enable_doubler=self.doubler_var.get(),
+                        enable_sidechain=self.sidechain_var.get(),
+                        enable_lufs_mastering=self.lufs_master_var.get(),
+                        enable_breath_passthrough=self.breath_passthrough_var.get(),
+                        formant_shift=self.formant_shift_var.get(),
+                        generate_harmonies=self.harmonies_var.get(),
+                        harmony_mode=self.harmony_mode_var.get().split()[0],
+                        dynamic_pitch_rules=self.dynamic_pitch_rules_var.get(),
                     )
                     print(f"[A/B Test] Model B tamamlandı: {out_path_b}")
 

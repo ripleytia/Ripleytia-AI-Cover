@@ -507,8 +507,18 @@ def voice_change(voice_model, vocals_path, output_path, pitch_change, f0_method,
     hubert_model = load_hubert(device, config.is_half, os.path.join(rvc_models_dir, 'hubert_base.pt'))
     cpt, version, net_g, tgt_sr, vc = get_vc(device, config.is_half, config, rvc_model_path)
 
+    actual_f0_method = f0_method
+    if f0_method == 'ensemble_consensus':
+        print('[~] Ensemble F0 Consensus devrede: Coklu model frekans haritasi cikariliyor...')
+        try:
+            from vocal_enhancer import compute_ensemble_f0_consensus
+            _ = compute_ensemble_f0_consensus(vocals_path)
+        except Exception as e:
+            print(f"[Ensemble F0 Consensus Uyarisi] {e}")
+        actual_f0_method = 'rmvpe'
+
     # convert main vocals
-    rvc_infer(rvc_index_path, index_rate, vocals_path, output_path, pitch_change, f0_method, cpt, version, net_g, filter_radius, tgt_sr, rms_mix_rate, protect, crepe_hop_length, vc, hubert_model)
+    rvc_infer(rvc_index_path, index_rate, vocals_path, output_path, pitch_change, actual_f0_method, cpt, version, net_g, filter_radius, tgt_sr, rms_mix_rate, protect, crepe_hop_length, vc, hubert_model)
     del hubert_model, cpt
     gc.collect()
 
@@ -559,11 +569,15 @@ def to_int(val, default=0):
         return default
 
 
-def song_cover_pipeline(song_input, voice_model, pitch_change, keep_files,
+def song_cover_pipeline(song_input, voice_model, pitch_change, keep_files=False,
                         is_webui=0, main_gain=0, backup_gain=0, inst_gain=0, index_rate=0.5, filter_radius=3,
                         rms_mix_rate=0.25, f0_method='rmvpe', crepe_hop_length=128, protect=0.33, pitch_change_all=0,
                         reverb_rm_size=0.15, reverb_wet=0.2, reverb_dry=0.8, reverb_damping=0.7, output_format='mp3',
-                        aggressive_dereverb=False, uvr_model="Default RVC", vocal_noise_gate=False, noise_gate_threshold=-35, force_reprocess=False, auto_mode=False, auto_mode_callback=None, progress=gr.Progress()):
+                        aggressive_dereverb=False, uvr_model="Default RVC", vocal_noise_gate=False, noise_gate_threshold=-35,
+                        force_reprocess=False, auto_mode=False, auto_mode_callback=None, progress=gr.Progress(),
+                        enable_deesser=True, enable_studio_eq=True, enable_doubler=False, enable_sidechain=True,
+                        enable_lufs_mastering=True, enable_breath_passthrough=True, formant_shift=0.0,
+                        generate_harmonies=False, harmony_mode="3rd_and_5th", dynamic_pitch_rules=""):
     try:
         pitch_change = to_float(pitch_change, 0)
         pitch_change_all = to_float(pitch_change_all, 0)
@@ -660,6 +674,15 @@ def song_cover_pipeline(song_input, voice_model, pitch_change, keep_files,
             sf.write(gated_path, gate_audio, sr)
             main_vocals_dereverb_path = gated_path
 
+        # Dynamic Pitch per Segment (Verse vs Chorus Router)
+        if dynamic_pitch_rules and str(dynamic_pitch_rules).strip():
+            display_progress('[~] Applying Verse vs Chorus dynamic pitch shifts...', 0.48, is_webui, progress)
+            try:
+                from harmony_and_pitch_router import apply_verse_chorus_dynamic_pitch
+                main_vocals_dereverb_path = apply_verse_chorus_dynamic_pitch(main_vocals_dereverb_path, str(dynamic_pitch_rules).strip())
+            except Exception as dyn_err:
+                print(f"[Dynamic Pitch Hatasi] {dyn_err}")
+
         safe_song_name = safe_filename(os.path.splitext(os.path.basename(orig_song_path))[0])
         pitch_change = pitch_change * 12 + pitch_change_all
         ai_vocals_path = os.path.join(song_dir, f'{safe_song_name}_{voice_model}_{safe_filename(uvr_model).replace(" ", "")}_p{pitch_change}_i{index_rate}_fr{filter_radius}_rms{rms_mix_rate}_pro{protect}_{f0_method}{"" if f0_method != "mangio-crepe" else f"_{crepe_hop_length}"}.wav')
@@ -669,16 +692,117 @@ def song_cover_pipeline(song_input, voice_model, pitch_change, keep_files,
             display_progress('[~] Converting voice using RVC...', 0.5, is_webui, progress)
             voice_change(voice_model, main_vocals_dereverb_path, ai_vocals_path, pitch_change, f0_method, index_rate, filter_radius, rms_mix_rate, protect, crepe_hop_length, is_webui)
 
-        display_progress('[~] Applying audio effects to Vocals...', 0.8, is_webui, progress)
+        # 1. Formant Shifter (Vocal Tract Resonance Scaling)
+        f_shift = to_float(formant_shift, 0.0)
+        if abs(f_shift) >= 0.1 and os.path.exists(ai_vocals_path):
+            display_progress(f'[~] Applying Formant Shifter ({f_shift:+.1f} st)...', 0.68, is_webui, progress)
+            try:
+                import soundfile as sf
+                from vocal_enhancer import shift_formants
+                v_data, v_sr = sf.read(ai_vocals_path, dtype='float32')
+                v_shifted = shift_formants(v_data, v_sr, formant_semitones=f_shift)
+                sf.write(ai_vocals_path, v_shifted.T if v_shifted.ndim > 1 and v_shifted.shape[0] == 2 else v_shifted, v_sr)
+            except Exception as fe:
+                print(f"[Formant Shifter Hatasi] {fe}")
+
+        # 2. Human Breath Passthrough Engine (Preserve & Reinject original breaths)
+        if enable_breath_passthrough and os.path.exists(ai_vocals_path):
+            display_progress('[~] Restoring natural human breaths (Breath Passthrough)...', 0.71, is_webui, progress)
+            try:
+                from vocal_enhancer import preserve_and_reinject_breaths
+                ref_vocal = main_vocals_path if (main_vocals_path and os.path.exists(main_vocals_path)) else main_vocals_dereverb_path
+                ai_vocals_path = preserve_and_reinject_breaths(ref_vocal, ai_vocals_path, progress_cb=lambda msg: display_progress(msg, 0.72, is_webui, progress))
+            except Exception as bpe:
+                print(f"[Breath Passthrough Hatasi] {bpe}")
+
+        # 3. Smart De-Esser (5kHz - 9kHz harsh sibilance control)
+        if enable_deesser and os.path.exists(ai_vocals_path):
+            display_progress('[~] Applying Smart De-Esser (5kHz-9kHz Sibilance Control)...', 0.74, is_webui, progress)
+            try:
+                import soundfile as sf
+                from vocal_chain import apply_deesser
+                v_data, v_sr = sf.read(ai_vocals_path, dtype='float32')
+                v_deessed = apply_deesser(v_data, v_sr)
+                sf.write(ai_vocals_path, v_deessed.T if v_deessed.ndim > 1 and v_deessed.shape[0] == 2 else v_deessed, v_sr)
+            except Exception as de:
+                print(f"[De-Esser Hatasi] {de}")
+
+        # 4. 4-Band Studio Parametric EQ (80Hz LowCut, 250Hz Warmth, 450Hz MudCut, 12kHz Air)
+        if enable_studio_eq and os.path.exists(ai_vocals_path):
+            display_progress('[~] Applying 4-Band Studio Parametric EQ (LowCut/Warmth/MudCut/Air)...', 0.76, is_webui, progress)
+            try:
+                import soundfile as sf
+                from vocal_chain import apply_studio_parametric_eq
+                v_data, v_sr = sf.read(ai_vocals_path, dtype='float32')
+                v_eqed = apply_studio_parametric_eq(v_data, v_sr)
+                sf.write(ai_vocals_path, v_eqed.T if v_eqed.ndim > 1 and v_eqed.shape[0] == 2 else v_eqed, v_sr)
+            except Exception as eqe:
+                print(f"[Studio EQ Hatasi] {eqe}")
+
+        # 5. Stereo Vocal Doubler & Widener
+        if enable_doubler and os.path.exists(ai_vocals_path):
+            display_progress('[~] Applying Stereo Vocal Doubler & Widener...', 0.78, is_webui, progress)
+            try:
+                import soundfile as sf
+                from vocal_chain import apply_vocal_doubler_widener
+                v_data, v_sr = sf.read(ai_vocals_path, dtype='float32')
+                v_doubled = apply_vocal_doubler_widener(v_data, v_sr)
+                sf.write(ai_vocals_path, v_doubled.T if v_doubled.ndim > 1 and v_doubled.shape[0] == 2 else v_doubled, v_sr)
+            except Exception as dbe:
+                print(f"[Doubler Hatasi] {dbe}")
+
+        # 6. AI Backing Vocals & Harmony Generator
+        if generate_harmonies and os.path.exists(ai_vocals_path):
+            display_progress(f'[~] Generating AI Harmonies ({harmony_mode})...', 0.80, is_webui, progress)
+            try:
+                import soundfile as sf
+                from harmony_and_pitch_router import generate_backing_harmonies
+                v_data, v_sr = sf.read(ai_vocals_path, dtype='float32')
+                v_harm = generate_backing_harmonies(v_data, v_sr, harmony_mode=harmony_mode)
+                sf.write(ai_vocals_path, v_harm.T if v_harm.ndim > 1 and v_harm.shape[0] == 2 else v_harm, v_sr)
+            except Exception as he:
+                print(f"[Harmonies Hatasi] {he}")
+
+        display_progress('[~] Applying audio effects to Vocals...', 0.83, is_webui, progress)
         ai_vocals_mixed_path = add_audio_effects(ai_vocals_path, reverb_rm_size, reverb_wet, reverb_dry, reverb_damping)
 
+        # 7. Dynamic Sidechain Pocket Ducking (1kHz - 3.5kHz)
+        instrumentals_to_mix = instrumentals_path
+        if enable_sidechain and instrumentals_path and os.path.exists(instrumentals_path) and os.path.exists(ai_vocals_mixed_path):
+            display_progress('[~] Applying Dynamic Sidechain Ducking (1kHz-3.5kHz pocket)...', 0.87, is_webui, progress)
+            try:
+                import soundfile as sf
+                from vocal_chain import apply_sidechain_ducking
+                inst_data, inst_sr = sf.read(instrumentals_path, dtype='float32')
+                voc_data, voc_sr = sf.read(ai_vocals_mixed_path, dtype='float32')
+                if inst_sr == voc_sr:
+                    ducked = apply_sidechain_ducking(inst_data, voc_data, inst_sr)
+                    ducked_path = os.path.join(song_dir, f"{song_id}_inst_sidechained.wav")
+                    sf.write(ducked_path, ducked.T if ducked.ndim > 1 and ducked.shape[0] == 2 else ducked, inst_sr)
+                    instrumentals_to_mix = ducked_path
+            except Exception as sde:
+                print(f"[Sidechain Hatasi] {sde}")
 
-        display_progress('[~] Combining AI Vocals and Instrumentals...', 0.9, is_webui, progress)
-        combine_audio([ai_vocals_mixed_path, backup_vocals_path, instrumentals_path], ai_cover_path, main_gain, backup_gain, inst_gain, output_format)
+        display_progress('[~] Combining AI Vocals and Instrumentals...', 0.90, is_webui, progress)
+        combine_audio([ai_vocals_mixed_path, backup_vocals_path, instrumentals_to_mix], ai_cover_path, main_gain, backup_gain, inst_gain, output_format)
+
+        # 8. Radio-Ready -14 LUFS Mastering & True Peak Limiter
+        if enable_lufs_mastering and os.path.exists(ai_cover_path):
+            display_progress('[~] Applying Broadcast Standard -14 LUFS Mastering & True Peak Limiter...', 0.94, is_webui, progress)
+            try:
+                import soundfile as sf
+                from vocal_chain import apply_lufs_loudness_mastering
+                cov_data, cov_sr = sf.read(ai_cover_path, dtype='float32')
+                mastered = apply_lufs_loudness_mastering(cov_data, cov_sr, target_lufs=-14.0, true_peak_ceiling=-1.0)
+                sf.write(ai_cover_path, mastered.T if mastered.ndim > 1 and mastered.shape[0] == 2 else mastered, cov_sr)
+            except Exception as lfe:
+                print(f"[LUFS Mastering Hatasi] {lfe}")
 
         if not keep_files:
-            display_progress('[~] Removing intermediate audio files...', 0.95, is_webui, progress)
+            display_progress('[~] Removing intermediate audio files...', 0.97, is_webui, progress)
             intermediate_files = [vocals_path, main_vocals_path, ai_vocals_mixed_path]
+            if instrumentals_to_mix != instrumentals_path:
+                intermediate_files.append(instrumentals_to_mix)
 
             for file in intermediate_files:
                 if file and os.path.exists(file):
