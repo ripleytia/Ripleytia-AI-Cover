@@ -3,7 +3,9 @@ import sys
 import json
 import subprocess
 import time
-from urllib.parse import urlparse
+import urllib.request
+from urllib.parse import urlparse, parse_qs
+from PIL import Image
 
 # Ensure dataset_builder is accessible for modern yt-dlp locator
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -12,6 +14,14 @@ try:
 except ImportError:
     def get_modern_ytdlp_cmd():
         return ["yt-dlp"]
+
+
+THUMB_CACHE_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "song_output",
+    "yt_thumbnails"
+)
+os.makedirs(THUMB_CACHE_DIR, exist_ok=True)
 
 
 def format_views(view_count):
@@ -30,17 +40,127 @@ def format_views(view_count):
         return ""
 
 
+def get_cached_thumbnail(video_id: str, thumb_url: str = None, target_size=(96, 54)) -> str:
+    """
+    Downloads, resizes and caches YouTube thumbnail on disk. Returns local image file path.
+    """
+    if not video_id:
+        return ""
+    out_file = os.path.join(THUMB_CACHE_DIR, f"{video_id}.jpg")
+    if os.path.exists(out_file) and os.path.getsize(out_file) > 100:
+        return out_file
+
+    if not thumb_url:
+        thumb_url = f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
+
+    try:
+        req = urllib.request.Request(
+            thumb_url,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        )
+        with urllib.request.urlopen(req, timeout=4) as response:
+            with open(out_file, "wb") as f:
+                f.write(response.read())
+
+        # Resize to compact card thumbnail
+        try:
+            with Image.open(out_file) as im:
+                im = im.convert("RGB")
+                im.thumbnail(target_size, Image.Resampling.LANCZOS)
+                im.save(out_file, "JPEG", quality=85)
+        except Exception:
+            pass
+
+        return out_file
+    except Exception:
+        return ""
+
+
+def is_playlist_url(url: str) -> bool:
+    """Checks if a URL is a YouTube playlist."""
+    parsed = urlparse(url)
+    if "youtube.com" in parsed.netloc or "youtu.be" in parsed.netloc:
+        query_params = parse_qs(parsed.query)
+        if "list" in query_params and query_params["list"]:
+            return True
+    return False
+
+
+def get_playlist_videos(playlist_url: str, max_items: int = 25) -> list:
+    """
+    Extracts video list from a YouTube playlist using modern yt-dlp.
+    Returns list of video dicts.
+    """
+    ytdlp_base = get_modern_ytdlp_cmd()
+    cmd = ytdlp_base + [
+        playlist_url,
+        "--flat-playlist",
+        "--dump-json",
+        "--playlist-end", str(max_items),
+        "--no-warnings",
+        "--no-check-certificate"
+    ]
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30
+        )
+    except Exception as e:
+        raise RuntimeError(f"Playlist çekilemedi: {e}")
+
+    videos = []
+    lines = (proc.stdout or "").strip().split("\n")
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            data = json.loads(line)
+        except Exception:
+            continue
+
+        vid_id = data.get("id") or ""
+        if not vid_id:
+            continue
+        title = data.get("title") or "Bilinmeyen Başlık"
+        channel = data.get("channel") or data.get("uploader") or "Bilinmeyen Kanal"
+        dur_str = data.get("duration_string") or "--:--"
+        url = data.get("url") or f"https://www.youtube.com/watch?v={vid_id}"
+        if not url.startswith("http"):
+            url = f"https://www.youtube.com/watch?v={vid_id}"
+
+        thumb = data.get("thumbnail") or f"https://i.ytimg.com/vi/{vid_id}/hqdefault.jpg"
+
+        videos.append({
+            "id": vid_id,
+            "title": title,
+            "channel": channel,
+            "duration_string": dur_str,
+            "views": format_views(data.get("view_count")),
+            "url": url,
+            "thumbnail": thumb
+        })
+    return videos
+
+
 def search_youtube(query: str, max_results: int = 6) -> list:
     """
     Searches YouTube or fetches a single video info using modern yt-dlp.
-    Returns a list of dicts:
-    [{'id': ..., 'title': ..., 'channel': ..., 'duration_string': ..., 'views': ..., 'url': ..., 'thumbnail': ...}, ...]
+    Returns a list of dicts with thumbnail, title, channel, views, url, etc.
     """
     query = query.strip()
     if not query:
         return []
 
     ytdlp_base = get_modern_ytdlp_cmd()
+
+    # Check if query is a playlist
+    if is_playlist_url(query):
+        return get_playlist_videos(query, max_items=max_results * 2)
 
     # Check if query is a direct YouTube link
     parsed = urlparse(query)
@@ -115,6 +235,8 @@ def search_youtube(query: str, max_results: int = 6) -> list:
         thumb = data.get("thumbnail")
         if not thumb and data.get("thumbnails"):
             thumb = data.get("thumbnails")[-1].get("url")
+        if not thumb:
+            thumb = f"https://i.ytimg.com/vi/{vid_id}/hqdefault.jpg"
 
         results.append({
             "id": vid_id,

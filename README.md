@@ -6,57 +6,53 @@
 <a href="https://github.com/ripleytia/Ripleytia-AI-Cover/stargazers"><img src="https://img.shields.io/github/stars/ripleytia/Ripleytia-AI-Cover?style=for-the-badge&color=gold" alt="Stars"></a>
 </div>
 
-# 🎵 Ripleytia AI Sound Studio V3.6 - Cover, Dahili YouTube Arama, Otomatik Dataset & Ses Modelleme Merkezi
+# 🎵 Ripleytia AI Sound Studio V4.0 - Ultimate Studio Edition
 
-**Ripleytia AI Sound Studio**, yapay zeka müzik ve ses teknolojilerini tek bir çatı altında birleştiren yeni nesil bir **AI Ses Laboratuvarı**dır. **Dahili YouTube Arama & Anında Cover**, **Otomatik Dataset Hazırlayıcı**, **Profesyonel RVC Ses Modelleme (Eğitim)** ve **UVR5 Special 2 (SOTA Roformer & Vokal Kurtarma Kalkanı)** teknolojilerini tek tıkla kullanabileceğiniz modern ve şık bir stüdyodur.
+**Ripleytia AI Sound Studio V4.0**, yapay zeka müzik ve ses prodüksiyonunun tüm aşamalarını tek bir çatı altında toplayan devrimsel bir **Yeni Nesil AI Ses İş İstasyonudur (DAW)**.
 
 ---
 
-## 🚀 V3.6 Sürümü ile Gelen Devrimsel Yenilikler
+## 🚀 V4.0 Ultimate Sürümü ile Eklenen Tüm Özellikler
 
-### 🔍 1. Dahili YouTube Arama & Anında Cover (In-App YouTube Search & Instant Cover)
-* **Tarayıcıya Gerek Yok:** Uygulama içerisinden çıkmadan doğrudan şarkı adı veya sanatçı aratabilirsiniz.
-* **Hızlı ve Detaylı Sonuçlar:** YouTube'un arama motoruyla saniyeler içinde şarkı adı, kanal/sanatçı, süre ve görüntülenme sayısı kartlar halinde listelenir.
-* **📥 İndir ve Seç:** Seçtiğiniz şarkıyı stüdyo kalitesinde (320 kbps) otomatik indirip anında girdi alanına bağlar.
-* **⚡ İndir & Cover Yap:** Tek bir tıklamayla parçayı indirir, arkasından vokali ayırıp seçtiğiniz RVC modeliyle anında Cover yapmaya başlar!
+### 🎵 1. Cover & Ses Kalitesi
+* **🎯 Akıllı Pitch & Ton Öneri Motoru:** Kaynak şarkının müzikal tonunu (Majör/Minör) ve vokal F0 frekansını milisaniyelik analiz eder. Seçilen ses modelinin ses karakterine (kadın/erkek) göre ideal Pitch (+/- semitone) değerini tek tıkla otomatik ayarlar.
+* **🎧 Dahili Dalga Formlu (Waveform) Müzik Çalar:** Harici medya oynatıcıya gerek kalmadan, uygulama içinde interaktif dalga formu, scrubbing zaman çubuğu, ses seviyesi ve oynat/duraklat kontrolleriyle anında dinleme.
+* **⭐ AI Ses Klonlama Kalite Raporu:** Her cover sonrasında vokal doğallığı, ton sadakati, tını uyumu ve SDR (Signal-to-Distortion Ratio) skorunu hesaplayarak 5 yıldızlı karnesini çıkartır.
+* **⚖️ Model Karşılaştırma (A/B Test) Modu:** Aynı şarkıyı iki farklı ses modeline gönderip sonuçları yan yana kıyaslayabilme imkanı.
+* **📑 Toplu Cover Kuyruğu (Batch Queue):** Onlarca şarkıyı veya YouTube linkini sıraya ekleyin; stüdyo gece boyu hepsini sırayla işlesin ve tamamlandığında bildirim göndersin.
+* **🎧 Cover Geçmişi & Arşiv:** Daha önce üretilen tüm parçaları listeler; tek tıkla dahili çalarda dinleme, klasörde bulma ve kullanılan ayarları stüdyoya geri yükleme desteği sunar.
 
-### 🛡️ 2. Akıllı Vokal Kurtarma Kalkanı (Intelligent Vocal Rescue & Ghosting Shield)
-* **Problem:** Birçok şarkıda De-Reverb ve Karaoke modelleri oda yankısını veya geri vokalleri temizleyeceğim derken; sanatçının fısıltılarını, çift seslerini (double-track) ve kelime sonlarını yutuyor, vokal sönükleşip kaybolabiliyordu.
-* **Devrimsel Çözüm:** 1. aşamadaki kusursuz `Becruily Vocals` emniyet referansı olarak hafızaya alınır. De-Reverb ve Karaoke sonrasında ses saniyede 40 kez (25ms aralıklarla) taranır. Yutulan veya zayıflayan her hece, **sıfır çıtırtı ve sıfır faz hatasıyla (sample-accurate linear crossfade)** orijinal vokalden yamalanarak onarılır. Vokal artık **asla yok olmaz ve dimdik ayakta kalır!**
+### 🔍 2. YouTube & Oynatma Listesi Geliştirmeleri
+* **🖼️ Kapak Resmi (Thumbnail) Önizleme:** YouTube arama sonuçlarında videoların yüksek çözünürlüklü kapak resimleri kartların yanında otomatik gösterilir.
+* **📜 Oynatma Listesi (Playlist) Desteği:** Tek bir video linki yerine YouTube Playlist URL'si yapıştırarak listedeki tüm parçaları tek hamlede sıraya ekleyebilme.
+* **⚡ Tek Tıkla Kuyruğa Aktarma:** Arama sonuçlarındaki herhangi bir videoyu doğrudan Toplu Cover kuyruğuna gönderme seçeneği.
 
-### 🎛️ 3. UVR5 Special 2 (4 Aşamalı Ultra Roformer Hattı)
-AI Cover ve Dataset hazırlama için dünyanın en güçlü modelleri bir arada:
-1. **Mel-Band Roformer Vocals (Becruily):** Sıfır müzik sızıntısıyla ana vokal ayrıştırma.
-2. **Mel-Band Roformer Instrumental (Becruily):** Stüdyo kalitesinde tertemiz enstrümantal çıkarma.
-3. **Mel-Band Roformer Karaoke (Aufr33 & Viperx - SDR 10.19):** Ana vokali arkadaki koro ve adlib seslerinden ayırır.
-4. **Mel-Band Roformer De-Reverb (Anvuew - SDR 19.17):** Oda akustiğini ve eko kalıntılarını sıfırlayarak kuru stüdyo kaydı elde eder.
-5. **Vocal Rescue Shield Entegrasyonu:** Kayıp kelimeleri canlı yüzdeyle raporlar ve otomatik onarır.
+### 🎙️ 3. Vokal & Model Yönetimi
+* **🌐 Topluluk & Hugging Face Model İndirici:** Seçkin RVC modellerini (Nesil, Pqueen, Barış Manço, Sagopa Kajmer, Şebnem Ferah, Hatsune Miku) tek tıkla otomatik kurun ya da herhangi bir HuggingFace / Pixeldrain ZIP linkini yapıştırıp indirin.
+* **📊 Vokal & Ses Karakteristiği Laboratuvarı:** Ses dosyasının en pes ve en tiz notalarını (Min/Max Note), ortalama F0 frekansını, dinamik aralığını (dB), şarkı söyleme oranını (%) ve SNR değerini görsel Matplotlib grafikleriyle raporlar.
 
-### 🎙️ 4. Profesyonel Ses Modelleme (Eğitim Stüdyosu)
-* **Tek Tıkla Hazır Eğitim Presetleri:**
-  * **Dengeli (Önerilen - Stüdyo Standart):** 40kHz HiFi-GAN mimarisi ile hem AI Cover hem W-Okada canlı kullanım için ideal denge.
-  * **Maksimum Kalite (Ultra Detay & Nefes):** 48kHz Ultra HD ve **TITAN-Medium** ön eğitim modeli ile en ince vokal detayları.
-  * **Hızlı Render (Pratik & Hızlı Eğitim):** 32kHz, **FCPE** pitch ve **Ov2Super** modeli ile süper hızlı yakınsama.
-  * **W-Okada / Canlı Konuşma & Discord:** Canlı ses değiştiricilerde mikrofondaki nefes patlamasını önleyen (`include_mutes=4`) ve **Snowie V3.1** modeli ile optimize edilmiş profil.
-* **Akıllı Epoch Tavsiyesi:** Dataset süresini otomatik hesaplayarak ses bozulmadan (Overfitting olmadan) gereken en ideal Epoch sayısını belirler.
-* **Otomatik Kurulum:** Model eğitildiği an `.pth` ve `.index` dosyaları stüdyoya eklenir, hemen cover yapmaya hazır hale gelir!
+### 🤖 4. Yapay Zeka & Müzik Danışmanı
+* **📜 Şarkı Sözleri & Türkçe Çeviri (LRCLIB):** Şarkının orijinal sözlerini anında çeker ve stüdyo paneli içinde Türkçe tercümesiyle yan yana görüntüler.
+* **💡 Akıllı Stil & BPM Danışmanı:** Şarkının temposunu (BPM) ve ritmik yoğunluğunu hesaplayarak Rock, Rap, Pop veya Ballad türüne göre en ideal RVC algoritmasını, Index Rate ve Reverb parametrelerini otomatik önerir.
 
-### 📂 5. Otomatik Dataset Hazırlayıcı (Auto Dataset Builder)
-* Çoklu yerel dosya (`MP3, WAV, FLAC, MP4, MKV`) veya çoklu YouTube linki desteği.
-* Modern **Python 3.12 / 3.14 yt-dlp köprüsü** ile 2026+ güncel YouTube altyapısı.
-* 40 dB sessizlik budama, 75Hz Highpass filtre, ses dengeleme (normalization) ve otomatik konuşma segmentasyonu.
-* **Gece Bırakma Modu:** Dataset biter bitmez eğitimi otomatik başlatma seçeneği!
+### 🗃️ 5. Dataset & Eğitim İnovasyonları
+* **📈 Dataset Kalite & SNR Denetçisi:** Veri setinizdeki seslerin toplam net süresini, SNR oranını ve kırpılma (clipping) seviyesini hesaplayarak **A+, A, B, C** kalite notu verir.
+* **📈 Eğitim Kayıp (Loss) Grafiği:** Model eğitiminin yakınsama ve kayıp (Generator/Discriminator Loss) eğrisini görsel çizgi grafiği olarak çizer.
+* **⚡ 5s Hızlı Ses Testi (Önizleme):** Model eğitimi biter bitmez modeli kaydetmeden önce 5 saniyelik referans bir test vokali üreterek dahili çalarda anında dinletir.
 
-### 💻 6. Tek Tıkla Kurulum Sihirbazı (Setup.exe)
-* Uygulamanın modern **Gothic Purple / Dark Cyber** temasıyla birebir uyumlu kurulum sihirbazı.
-* Python sanal ortamını (venv), CUDA PyTorch bağımlılıklarını ve temel modelleri otomatik yapılandırır.
-* Masaüstüne **Ripleytia AI Studio** kısayolunu otomatik ekler.
+### 🎨 6. Kullanıcı Deneyimi & Arayüz
+* **🎨 Çoklu Tema Desteği:**
+  * **Gothic Purple (Varsayılan):** Büyüleyici derin mor ve karanlık siber estetik.
+  * **Cyber Cyan:** Fütüristik neon camgöbeği ve gece mavisi.
+  * **Midnight OLED:** Saf siyah zemin üzerinde canlı kırmızı vurgular.
+* **🌐 Çoklu Dil Desteği:** Türkçe (`TR`), İngilizce (`EN`), Japonca (`JA`), Korece (`KO`).
+* **🔔 Windows Masaüstü Bildirimleri:** Uzun süren cover üretimi, toplu kuyruk veya model eğitimi tamamlandığında Windows sesli masaüstü bildirimi gönderir.
 
 ---
 
 ## 📥 İndirme ve Hızlı Kurulum
 
-1. [Releases (Sürümler)](https://github.com/ripleytia/Ripleytia-AI-Cover/releases) sayfasından en güncel **`Ripleytia_AI_Sound_Studio_V3.6_Setup.zip`** dosyasını indirin.
+1. [Releases (Sürümler)](https://github.com/ripleytia/Ripleytia-AI-Cover/releases) sayfasından en güncel **`Ripleytia_AI_Sound_Studio_V4.0_Setup.zip`** dosyasını indirin.
 2. Zip içerisindeki **`Setup.exe`** dosyasını çalıştırın.
 3. Kurulum klasörünü seçip **"Kurulumu Başlat"** butonuna tıklayın.
 4. Kurulum tamamlandığında masaüstünüzdeki **Ripleytia AI Studio** kısayoluna çift tıklayarak stüdyonuzu hemen açabilirsiniz!
@@ -65,18 +61,13 @@ AI Cover ve Dataset hazırlama için dünyanın en güçlü modelleri bir arada:
 
 ## 🛠️ Manuel Çalıştırma (Geliştiriciler İçin)
 
-Projeyi klonladıktan sonra doğrudan başlatmak için:
-
 ```bash
-# Projeyi klonlayın
 git clone https://github.com/ripleytia/Ripleytia-AI-Cover.git
 cd Ripleytia-AI-Cover
-
-# Başlatıcıyı çalıştırın
 Start-SuperGUI.bat
 ```
 
-Veya Python sanal ortamından:
+Veya doğrudan:
 
 ```bash
 .\venv\Scripts\python.exe src\super_gui.py
