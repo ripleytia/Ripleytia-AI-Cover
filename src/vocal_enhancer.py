@@ -20,47 +20,39 @@ def shift_formants(
     formant_semitones: float = 0.0
 ) -> np.ndarray:
     """
-    Formant Shifter (Vocal Tract Resonance):
-    Scales the spectral envelope (formants) by factor alpha = 2^(semitones / 12),
-    while preserving the musical pitch F0.
+    Formant Resonance & Spectral Body Controller:
+    Adjusts vocal tract resonance and body without altering fundamental musical pitch F0:
+    - Negative semitones: Boosts 250-500Hz chest resonance & softens presence (warmer, deeper body).
+    - Positive semitones: Lightens low chest resonance & enhances 2.5-4kHz presence (brighter, lighter body).
+    - F0 (pitch) and playback speed are 100% mathematically preserved.
     """
-    if abs(formant_semitones) < 0.05:
+    if abs(formant_semitones) < 0.1:
         return audio
 
-    is_stereo = (audio.ndim > 1 and audio.shape[0] == 2) or (audio.ndim > 1 and audio.shape[1] == 2)
-    if is_stereo and audio.shape[0] != 2:
-        audio = audio.T
-
-    # Scale factor for vocal tract
-    alpha = 2.0 ** (formant_semitones / 12.0)
-
     try:
-        # Step 1: Resample audio by alpha (scales formants and pitch by alpha)
-        orig_len = audio.shape[-1]
-        new_sr = int(round(sr * alpha))
-        
-        # Process each channel
+        import pedalboard
+        from pedalboard import Pedalboard, PeakFilter, HighShelfFilter, LowShelfFilter
+
+        # Semitones scaled safely to decibels (-6 to +6 st -> max ~4.5 dB subtle studio shaping)
+        low_gain = -formant_semitones * 1.2
+        mid_gain = -formant_semitones * 0.7
+        high_gain = formant_semitones * 1.0
+
+        board = Pedalboard([
+            LowShelfFilter(cutoff_frequency_hz=350.0, gain_db=low_gain),
+            PeakFilter(cutoff_frequency_hz=1200.0, gain_db=mid_gain, q=1.0),
+            HighShelfFilter(cutoff_frequency_hz=3600.0, gain_db=high_gain)
+        ])
+
         if audio.ndim == 1:
-            resampled = librosa.resample(audio, orig_sr=sr, target_sr=new_sr)
-            # Step 2: Shift pitch back by -formant_semitones so F0 returns to original
-            pitch_restored = librosa.effects.pitch_shift(resampled, sr=sr, n_steps=-formant_semitones)
-            # Align length
-            if len(pitch_restored) < orig_len:
-                pitch_restored = np.pad(pitch_restored, (0, orig_len - len(pitch_restored)))
-            else:
-                pitch_restored = pitch_restored[:orig_len]
-            return pitch_restored.astype(np.float32)
+            audio_in = np.stack([audio, audio], axis=0)
+            res = board(audio_in, sr)
+            return res[0].astype(np.float32)
+        elif audio.shape[0] > 2 and audio.shape[1] == 2:
+            res = board(audio.T, sr)
+            return res.T.astype(np.float32)
         else:
-            out_channels = []
-            for ch in range(audio.shape[0]):
-                resampled = librosa.resample(audio[ch], orig_sr=sr, target_sr=new_sr)
-                restored = librosa.effects.pitch_shift(resampled, sr=sr, n_steps=-formant_semitones)
-                if len(restored) < orig_len:
-                    restored = np.pad(restored, (0, orig_len - len(restored)))
-                else:
-                    restored = restored[:orig_len]
-                out_channels.append(restored)
-            return np.stack(out_channels, axis=0).astype(np.float32)
+            return board(audio, sr).astype(np.float32)
     except Exception as e:
         print(f"[Formant Shifter Hatası] {e}")
         return audio
@@ -92,6 +84,13 @@ def preserve_and_reinject_breaths(
             y_orig = np.stack([y_orig, y_orig], axis=-1)
         if y_proc.ndim == 1:
             y_proc = np.stack([y_proc, y_proc], axis=-1)
+
+        # Resample y_orig to sr_proc if sample rates differ (e.g. 44100 vs 40000)
+        if sr_orig != sr_proc:
+            ch0 = librosa.resample(y_orig[:, 0], orig_sr=sr_orig, target_sr=sr_proc)
+            ch1 = librosa.resample(y_orig[:, 1], orig_sr=sr_orig, target_sr=sr_proc)
+            y_orig = np.stack([ch0, ch1], axis=-1)
+            sr_orig = sr_proc
 
         # Match lengths
         min_len = min(len(y_orig), len(y_proc))
@@ -134,8 +133,11 @@ def preserve_and_reinject_breaths(
 
         # Reinject breaths: where mask is 1, blend in original vocal
         breath_count_pct = float(np.mean(mask_samples > 0.3)) * 100.0
-        mask_2d = np.stack([mask_samples, mask_samples], axis=-1)
-        final_vocal = (1.0 - mask_2d * 0.85) * y_proc + (mask_2d * 0.85) * y_orig
+        if np.max(mask_samples) > 0.05:
+            mask_2d = np.stack([mask_samples, mask_samples], axis=-1)
+            final_vocal = (1.0 - mask_2d * 0.7) * y_proc + (mask_2d * 0.7) * y_orig
+        else:
+            final_vocal = y_proc
 
         sf.write(output_path, final_vocal.astype(np.float32), sr_proc)
         if progress_cb:
