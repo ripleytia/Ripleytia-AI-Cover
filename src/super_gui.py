@@ -1607,6 +1607,16 @@ class App(ctk.CTk):
                 f0_method=item["algo"],
                 uvr_model=item["uvr_model"]
             )
+            target_out_dir = self.output_dir_var.get().strip() if hasattr(self, "output_dir_var") else ""
+            if target_out_dir and os.path.exists(target_out_dir):
+                dest_p = os.path.join(target_out_dir, os.path.basename(out_p))
+                if os.path.abspath(out_p) != os.path.abspath(dest_p):
+                    try:
+                        import shutil
+                        shutil.copyfile(out_p, dest_p)
+                        out_p = dest_p
+                    except Exception:
+                        pass
             return out_p
 
         def _on_finish():
@@ -2731,7 +2741,17 @@ class App(ctk.CTk):
             self.output_dir_var.set(d)
 
     def open_output_folder(self):
-        odir = self.output_dir_var.get() or output_dir
+        target_file = self.last_output_path
+        if target_file and os.path.exists(target_file):
+            try:
+                import subprocess
+                subprocess.Popen(f'explorer /select,"{os.path.normpath(target_file)}"')
+                return
+            except Exception as ee:
+                print(f"[Explorer Uyarısı] {ee}")
+        odir = self.output_dir_var.get().strip() if hasattr(self, "output_dir_var") else ""
+        if not odir or not os.path.exists(odir):
+            odir = output_dir
         if os.path.exists(odir):
             os.startfile(odir)
 
@@ -2813,6 +2833,22 @@ class App(ctk.CTk):
                     dynamic_pitch_rules=self.dynamic_pitch_rules_var.get(),
                 )
 
+                # Ensure the final output file is placed directly in the designated output folder
+                target_out_dir = self.output_dir_var.get().strip() if hasattr(self, "output_dir_var") else ""
+                if not target_out_dir:
+                    target_out_dir = output_dir
+
+                os.makedirs(target_out_dir, exist_ok=True)
+                dest_file = os.path.join(target_out_dir, os.path.basename(out_path))
+                if os.path.abspath(out_path) != os.path.abspath(dest_file):
+                    try:
+                        import shutil
+                        shutil.copyfile(out_path, dest_file)
+                        print(f"[+] Sarki secilen cikti klasorune aktarildi: {dest_file}")
+                        out_path = dest_file
+                    except Exception as ce:
+                        print(f"[Uyari] Cikti klasorune kopyalama hatasi: {ce}")
+
                 self.last_output_path = out_path
 
                 # 1. Save to Cover History
@@ -2833,20 +2869,20 @@ class App(ctk.CTk):
                     self.audio_player.load_audio(out_path, autoplay=True)
                     # Update Quality Scorecard
                     self.lbl_quality_stars.configure(
-                        text=f"{q_res['stars']} AI Kalite Puanı: %{q_res['overall_score']} ({q_res['verdict']})"
+                        text=f"{q_res['stars']} AI Kalite Puani: %{q_res['overall_score']} ({q_res['verdict']})"
                     )
                     self.lbl_quality_metrics.configure(
-                        text=f"Doğallık: %{q_res['naturalness']}  |  Ton Sadakati: %{q_res['pitch_accuracy']}  |  Tını Uyumu: %{q_res['timbre_match']}"
+                        text=f"Dogallik: %{q_res['naturalness']}  |  Ton Sadakati: %{q_res['pitch_accuracy']}  |  Tini Uyumu: %{q_res['timbre_match']}"
                     )
                     # Windows Notification
-                    send_windows_notification("Ripleytia AI Studio", f"'{os.path.basename(song)}' ({model}) coverı hazır! 🎧")
+                    send_windows_notification("Ripleytia AI Studio", f"'{os.path.basename(song)}' ({model}) coveri hazir! 🎧")
 
                 self.dispatch_to_ui(_ui_done)
 
                 # 3. Model Comparison A/B Test (if enabled)
                 if self.enable_compare_var.get() and self.compare_model_var.get():
                     comp_model = self.compare_model_var.get()
-                    print(f"\n[A/B Test] Karşılaştırma modeliyle ({comp_model}) ikinci cover üretiliyor...")
+                    print(f"\n[A/B Test] Karsilastirma modeliyle ({comp_model}) ikinci cover uretiliyor...")
                     out_path_b = song_cover_pipeline(
                         song_input=song,
                         voice_model=comp_model,
@@ -2864,7 +2900,15 @@ class App(ctk.CTk):
                         harmony_mode=self.harmony_mode_var.get().split()[0],
                         dynamic_pitch_rules=self.dynamic_pitch_rules_var.get(),
                     )
-                    print(f"[A/B Test] Model B tamamlandı: {out_path_b}")
+                    dest_file_b = os.path.join(target_out_dir, os.path.basename(out_path_b))
+                    if os.path.abspath(out_path_b) != os.path.abspath(dest_file_b):
+                        try:
+                            import shutil
+                            shutil.copyfile(out_path_b, dest_file_b)
+                            out_path_b = dest_file_b
+                        except Exception:
+                            pass
+                    print(f"[A/B Test] Model B tamamlandi: {out_path_b}")
 
             except Exception as e:
                 print(f"\n[Error] Pipeline failed: {str(e)}")

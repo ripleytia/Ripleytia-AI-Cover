@@ -836,6 +836,27 @@ def song_cover_pipeline(song_input, voice_model, pitch_change, keep_files=False,
                 if file and os.path.exists(file):
                     os.remove(file)
 
+        # Root output copy: ensure direct accessibility in main output folder
+        root_cover_copy = os.path.join(output_dir, os.path.basename(ai_cover_path))
+        if os.path.abspath(ai_cover_path) != os.path.abspath(root_cover_copy):
+            try:
+                import shutil
+                shutil.copyfile(ai_cover_path, root_cover_copy)
+                print(f"[+] Parça ana çıktı klasörüne aktarıldı: {root_cover_copy}")
+                ai_cover_path = root_cover_copy
+            except PermissionError:
+                try:
+                    import time, shutil
+                    b_name, b_ext = os.path.splitext(os.path.basename(ai_cover_path))
+                    root_cover_copy = os.path.join(output_dir, f"{b_name}_{int(time.time())}{b_ext}")
+                    shutil.copyfile(ai_cover_path, root_cover_copy)
+                    print(f"[+] Parça yeni adla ana çıktı klasörüne kaydedildi: {root_cover_copy}")
+                    ai_cover_path = root_cover_copy
+                except Exception as pe_inner:
+                    print(f"[Uyarı] Ana çıktı klasörüne kopyalama hatası: {pe_inner}")
+            except Exception as copy_e:
+                print(f"[Uyarı] Ana çıktı klasörüne kopyalama hatası: {copy_e}")
+
         print("\n" + "=" * 60)
         print("[+] BASARILI! AI Cover sarkisi tamamlandi!")
         print(f"[+] Dosya yolu: {ai_cover_path}")
